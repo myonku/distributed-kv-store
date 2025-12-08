@@ -1,0 +1,24 @@
+mode = "raft"
+
+[self]
+id = "node1"
+address = "127.0.0.1:8080"
+
+[self.storage]
+path = "./data/node1"
+
+[raft]
+election_timeout_ms = 150
+heartbeat_interval_ms = 50
+
+[[raft.nodes]]
+id = "node1"
+address = "127.0.0.1:8080"
+
+[[raft.nodes]]
+id = "node2"
+address = "127.0.0.1:8081"
+
+[[raft.nodes]]
+id = "node3"
+address = "127.0.0.1:8082"
