@@ -58,7 +58,7 @@ func signalContext() (context.Context, context.CancelFunc) {
 }
 
 // 根据配置的运行模式构造对应的 KVService 实现。
-func buildKVService(appCfg *configs.AppConfig) (api.KVService, error) {
+func buildKVService(appCfg *configs.AppConfig) (services.KVService, error) {
 	// 初始化底层存储（目前为纯内存实现，忽略路径）
 	st, err := store.NewStorage(appCfg.Self.Storage)
 	if err != nil {
