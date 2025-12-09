@@ -28,6 +28,8 @@ type RaftClusterConfig struct {
 	ElectionTimeoutMs int
 	// 心跳间隔时间（毫秒）
 	HeartbeatIntervalMs int
+	// 维护当前Raft Leader ID
+	LeaderID string
 }
 
 type RaftPeer struct {
@@ -53,7 +55,7 @@ type StorageConfig struct {
 	Path string
 }
 
-// 顶层应用配置
+// 顶层应用配置，初始时由settings.toml加载，运行时动态维护内存实例
 type AppConfig struct {
 	// 当前运行模式
 	Mode Mode
@@ -64,7 +66,7 @@ type AppConfig struct {
 	CHash *CHashClusterConfig
 }
 
-// 从 settings.toml 读取配置
+// 从 settings.toml 读取初始配置，返回 AppConfig 实例
 func ReadConfig(path string) (*AppConfig, error) {
 	appConfig := &AppConfig{}
 	if _, err := toml.DecodeFile(path, appConfig); err != nil {

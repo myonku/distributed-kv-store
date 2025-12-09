@@ -7,9 +7,8 @@ import (
 	"distributed-kv-store/configs"
 )
 
-// 表示对底层状态机的一个逻辑操作
-// 无论是 Raft 日志 entry 还是一致性哈希节点上的本地写入，
-// 都可以统一抽象为 Command。
+// 表示对底层状态机的一个逻辑操作。
+// 无论是 Raft 日志 entry 还是一致性哈希节点上的本地写入，都可以统一抽象为 Command。
 type Command struct {
 	Op    string
 	Key   string
@@ -17,11 +16,6 @@ type Command struct {
 }
 
 // 对底层 KV 状态机 + 持久化的抽象。
-//
-//   - 在 Raft 模式下，通常通过 Raft 日志驱动 Apply，
-//     AppendLog 可以对应 WAL 追加；
-//   - 在一致性哈希模式下，可以直接调用 ApplyLog 或组合一个
-//     简化的实现，只做本地应用和落盘。
 type Storage interface {
 	AppendLog(ctx context.Context, cmd Command) (index uint64, err error)
 	ApplyLog(ctx context.Context, index uint64) error
@@ -29,8 +23,14 @@ type Storage interface {
 	LastIndex() uint64
 }
 
+// 供外部 Service 层使用的封装
+type KVStore interface {
+	Put(ctx context.Context, key, value string) error
+	Get(ctx context.Context, key string) (string, error)
+	Delete(ctx context.Context, key string) error
+}
+
 // 内存实现 + 简单的 index 递增，用于单机/早期开发阶段。
-// 后续可以在 wal.go 中实现真正的 WAL，并在这里组合使用。
 type memoryStorage struct {
 	mu   sync.RWMutex
 	data map[string]string
@@ -38,8 +38,6 @@ type memoryStorage struct {
 }
 
 func NewStorage(cfg configs.StorageConfig) (Storage, error) {
-	// 目前忽略 cfg.Path，先提供纯内存实现，便于开发调试。
-	// 之后可以在此基础上增加 WAL/快照逻辑。
 	return &memoryStorage{
 		data: make(map[string]string),
 		logs: make([]Command, 0),

@@ -10,8 +10,10 @@ import (
 
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/api"
+	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/services"
 	"distributed-kv-store/internal/store"
+	"distributed-kv-store/internal/store/kvstore"
 )
 
 // kvnode 启动入口
@@ -67,11 +69,11 @@ func buildKVService(appCfg *configs.AppConfig) (services.KVService, error) {
 
 	switch appCfg.Mode {
 	case configs.ModeStandalone:
-		kvStore := store.NewStandaloneKVStore(st)
+		kvStore := kvstore.NewStandaloneKVStore(st)
 		return services.NewStandaloneKVService(kvStore), nil
 
 	case configs.ModeRaft:
-		// TODO: 后续在此处组装 Raft Node + RaftKVService
+		// TODO: 组装 Raft Node + RaftKVService
 		return nil, fmt.Errorf("mode %q not implemented yet", appCfg.Mode)
 
 	case configs.ModeConsHash:
@@ -79,6 +81,6 @@ func buildKVService(appCfg *configs.AppConfig) (services.KVService, error) {
 		return nil, fmt.Errorf("mode %q not implemented yet", appCfg.Mode)
 
 	default:
-		return nil, fmt.Errorf("unknown mode %q", appCfg.Mode)
+		return nil, errors.UnSupportedMode
 	}
 }
