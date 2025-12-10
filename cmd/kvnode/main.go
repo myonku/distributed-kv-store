@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -10,10 +9,6 @@ import (
 
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/api"
-	"distributed-kv-store/internal/errors"
-	"distributed-kv-store/internal/services"
-	"distributed-kv-store/internal/store"
-	"distributed-kv-store/internal/store/kvstore"
 )
 
 // kvnode 启动入口
@@ -25,6 +20,7 @@ func main() {
 		configPath = os.Args[1]
 	}
 
+	// 此处的配置对象可能在运行时动态更新（内存中），需传递指针
 	appCfg, err := configs.ReadConfig(configPath)
 	if err != nil {
 		log.Fatalf("read config failed: %v", err)
@@ -39,7 +35,7 @@ func main() {
 	ctx, cancel := signalContext()
 	defer cancel()
 
-	if err := api.StartHTTPServer(ctx, appCfg.Self.Address, svc); err != nil {
+	if err := api.StartHTTPServer(ctx, appCfg.Self.HTTPAddress, svc); err != nil {
 		log.Fatalf("http server error: %v", err)
 	}
 }
@@ -57,30 +53,4 @@ func signalContext() (context.Context, context.CancelFunc) {
 	}()
 
 	return ctx, cancel
-}
-
-// 根据配置的运行模式构造对应的 KVService 实现。
-func buildKVService(appCfg *configs.AppConfig) (services.KVService, error) {
-	// 初始化底层存储（目前为纯内存实现，忽略路径）
-	st, err := store.NewStorage(appCfg.Self.Storage)
-	if err != nil {
-		return nil, err
-	}
-
-	switch appCfg.Mode {
-	case configs.ModeStandalone:
-		kvStore := kvstore.NewStandaloneKVStore(st)
-		return services.NewStandaloneKVService(kvStore), nil
-
-	case configs.ModeRaft:
-		// TODO: 组装 Raft Node + RaftKVService
-		return nil, fmt.Errorf("mode %q not implemented yet", appCfg.Mode)
-
-	case configs.ModeConsHash:
-		// TODO: 后续在此处组装 CHash Node + CHashKVService
-		return nil, fmt.Errorf("mode %q not implemented yet", appCfg.Mode)
-
-	default:
-		return nil, errors.UnSupportedMode
-	}
 }

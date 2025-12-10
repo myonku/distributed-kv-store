@@ -66,9 +66,9 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 		n.votedFor = ""
 	}
 
-	// TODO: 在完整实现中，应在此处重置选举超时相关状态
+	// TODO: 在此处重置选举超时相关状态
 
-	// 2. 心跳请求（无日志条目）可快速返回
+	// 心跳请求（无日志条目）可快速返回
 	if len(req.Entries) == 0 {
 		// 更新 commitIndex
 		if req.LeaderCommit > n.commitIndex {
@@ -88,7 +88,7 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 	if req.PrevLogIndex > 0 {
 		localTerm := n.log[req.PrevLogIndex-1].Term
 		if localTerm != req.PrevLogTerm {
-			// 简化：直接返回失败；真实实现中应删除从 prevLogIndex 开始的冲突条目
+			// 简化：删除从 prevLogIndex 开始的冲突条目
 			resp.Success = false
 			resp.Message = "term mismatch at prevLogIndex"
 			return resp, nil

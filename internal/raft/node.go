@@ -46,6 +46,7 @@ type Node struct {
 	log         []LogEntry
 	commitIndex uint64
 	lastApplied uint64
+	voteCount   int // 当前任期内已获得的选票数（包含自己）
 
 	// leader 才使用
 	nextIndex  map[string]uint64 // 下一个要发送给该 follower 的日志条目索引

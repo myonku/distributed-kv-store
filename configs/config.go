@@ -15,9 +15,10 @@ const (
 
 // 单个节点“自身”的配置（通用）
 type NodeConfig struct {
-	ID      string // 本节点 ID
-	Address string // 对外服务地址（HTTP/RPC）
-	Storage StorageConfig
+	ID          string // 本节点 ID
+	HTTPAddress string // 对外服务地址（HTTP）
+	GRPCAdress  string // Raft 节点间通信地址（gRPC）
+	Storage     StorageConfig
 }
 
 // Raft 模式的集群配置
@@ -33,8 +34,8 @@ type RaftClusterConfig struct {
 }
 
 type RaftPeer struct {
-	ID      string
-	Address string
+	ID          string
+	GRPCAddress string // gRPC 地址
 }
 
 // 一致性哈希模式的集群配置
