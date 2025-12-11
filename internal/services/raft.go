@@ -5,7 +5,7 @@ import (
 
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft"
-	"distributed-kv-store/internal/store"
+	"distributed-kv-store/internal/storage"
 )
 
 // 基于 Raft 的分布式 KVService 实现。
@@ -14,11 +14,11 @@ import (
 //   - 读操作：当前简单实现为只允许 Leader 从本地存储读取，
 //     后续可以扩展为真正的线性一致读（ReadIndex/租约读等）。
 type RaftKVService struct {
-	st   store.Storage
+	st   storage.Storage
 	node *raft.Node
 }
 
-func NewRaftKVService(st store.Storage, node *raft.Node) KVService {
+func NewRaftKVService(st storage.Storage, node *raft.Node) KVService {
 	return &RaftKVService{st: st, node: node}
 }
 
@@ -30,7 +30,7 @@ func (s *RaftKVService) Put(ctx context.Context, key, value string) error {
 		return errors.ErrNotLeader
 	}
 
-	cmd := store.Command{
+	cmd := storage.Command{
 		Op:    "set", // 与 store.Storage.ApplyLog 中的语义保持一致
 		Key:   key,
 		Value: value,
@@ -45,7 +45,7 @@ func (s *RaftKVService) Delete(ctx context.Context, key string) error {
 		return errors.ErrNotLeader
 	}
 
-	cmd := store.Command{
+	cmd := storage.Command{
 		Op:  "delete",
 		Key: key,
 	}

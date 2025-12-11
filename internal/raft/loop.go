@@ -3,6 +3,7 @@ package raft
 import (
 	"context"
 	"distributed-kv-store/configs"
+	"distributed-kv-store/internal/raft/raft_store"
 	"maps"
 	"math/rand"
 	"time"
@@ -55,10 +56,17 @@ func (n *Node) handleElectionTimeout() {
 
 	// 记录当前任期和日志信息，用于构造 RequestVote
 	currentTerm := n.term
-	lastIndex := uint64(len(n.log))
+	var lastIndex uint64
 	var lastTerm uint64
-	if lastIndex > 0 {
-		lastTerm = n.log[lastIndex-1].Term
+	if n.logStore != nil {
+		if li, err := n.logStore.LastIndex(); err == nil {
+			lastIndex = li
+			if lastIndex > 0 {
+				if lt, err := n.logStore.Term(lastIndex); err == nil {
+					lastTerm = lt
+				}
+			}
+		}
 	}
 
 	// 拷贝 peers 列表供锁外使用
@@ -114,7 +122,12 @@ func (n *Node) handleElectionTimeout() {
 				if n.voteCount > len(n.peers)/2 {
 					n.role = Leader
 					// 初始化所有 follower 的 nextIndex / matchIndex
-					nextIdx := uint64(len(n.log)) + 1
+					var nextIdx uint64 = 1
+					if n.logStore != nil {
+						if li, err := n.logStore.LastIndex(); err == nil {
+							nextIdx = li + 1
+						}
+					}
 					for _, peer := range n.peers {
 						if peer.ID == n.id {
 							continue
@@ -147,14 +160,18 @@ func (n *Node) broadcastHeartbeat() {
 	term := n.term
 	leaderID := n.id
 	leaderCommit := n.commitIndex
-
-	logCopy := make([]LogEntry, len(n.log))
-	copy(logCopy, n.log)
 	nextIdxSnapshot := make(map[string]uint64, len(n.nextIndex))
 	maps.Copy(nextIdxSnapshot, n.nextIndex)
 
 	peers := append([]configs.RaftPeer(nil), n.peers...)
 	n.mu.Unlock()
+
+	var lastIndex uint64
+	if n.logStore != nil {
+		if li, err := n.logStore.LastIndex(); err == nil {
+			lastIndex = li
+		}
+	}
 
 	for _, p := range peers {
 		if p.ID == leaderID {
@@ -165,19 +182,23 @@ func (n *Node) broadcastHeartbeat() {
 		ni := nextIdxSnapshot[p.ID]
 		if ni == 0 {
 			// 如果未初始化，默认从日志尾后一个位置开始（只发心跳）
-			ni = uint64(len(logCopy)) + 1
+			ni = lastIndex + 1
 		}
 
 		prevLogIndex := ni - 1
 		var prevLogTerm uint64
-		if prevLogIndex > 0 && int(prevLogIndex-1) < len(logCopy) {
-			prevLogTerm = logCopy[prevLogIndex-1].Term
+		if prevLogIndex > 0 && n.logStore != nil {
+			if t, err := n.logStore.Term(prevLogIndex); err == nil {
+				prevLogTerm = t
+			}
 		}
 
 		// 发送从 nextIndex 开始的增量日志；如果没有新日志，则 Entries 为空，相当于心跳
-		var entries []LogEntry
-		if int(ni-1) < len(logCopy) {
-			entries = append([]LogEntry(nil), logCopy[ni-1:]...)
+		var entries []raft_store.LogEntry
+		if n.logStore != nil && ni <= lastIndex {
+			if es, err := n.logStore.Entries(ni, lastIndex+1); err == nil {
+				entries = es
+			}
 		}
 
 		req := &AppendEntriesRequest{
@@ -222,8 +243,14 @@ func (n *Node) broadcastHeartbeat() {
 				n.nextIndex[peerID] = match + 1
 
 				// 根据各节点 matchIndex 寻找大多数节点都已复制的最大索引 N，推进 commitIndex
+				var lastIndex uint64
+				if n.logStore != nil {
+					if li, err := n.logStore.LastIndex(); err == nil {
+						lastIndex = li
+					}
+				}
 				N := n.commitIndex
-				for i := n.commitIndex + 1; i <= uint64(len(n.log)); i++ {
+				for i := n.commitIndex + 1; i <= lastIndex; i++ {
 					count := 1
 					for _, peer := range n.peers {
 						if peer.ID == n.id { // 忽略自己
@@ -234,8 +261,10 @@ func (n *Node) broadcastHeartbeat() {
 						}
 					}
 					// 大多数节点已复制到 i，且该日志条目属于当前任期
-					if count > len(n.peers)/2 && n.log[i-1].Term == n.term {
-						N = i
+					if count > len(n.peers)/2 && n.logStore != nil {
+						if t, err := n.logStore.Term(i); err == nil && t == n.term {
+							N = i
+						}
 					}
 				}
 				if N > n.commitIndex {
@@ -247,8 +276,10 @@ func (n *Node) broadcastHeartbeat() {
 					n.nextIndex[peerID]--
 					prevIdx := n.nextIndex[peerID] - 1
 					var prevTerm uint64
-					if prevIdx > 0 && int(prevIdx-1) < len(n.log) {
-						prevTerm = n.log[prevIdx-1].Term
+					if prevIdx > 0 && n.logStore != nil {
+						if t, err := n.logStore.Term(prevIdx); err == nil {
+							prevTerm = t
+						}
 					}
 					if prevIdx == req.PrevLogIndex && prevTerm == req.PrevLogTerm {
 						break

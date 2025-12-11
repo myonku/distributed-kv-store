@@ -4,9 +4,10 @@ import (
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft"
-	raft_rpc "distributed-kv-store/internal/raft/rpc"
+	"distributed-kv-store/internal/raft/raft_rpc"
+	"distributed-kv-store/internal/raft/raft_store"
 	"distributed-kv-store/internal/services"
-	"distributed-kv-store/internal/store"
+	"distributed-kv-store/internal/storage"
 	"fmt"
 	"net"
 
@@ -16,7 +17,7 @@ import (
 // 根据配置的运行模式构造对应的 KVService 实现。
 func buildKVService(appCfg *configs.AppConfig) (services.KVService, error) {
 	// 初始化底层存储
-	st, err := store.NewStorage(appCfg.Self.Storage)
+	st, err := storage.NewStorage(appCfg.Self.Storage)
 	if err != nil {
 		return nil, err
 	}
@@ -44,16 +45,17 @@ func buildKVService(appCfg *configs.AppConfig) (services.KVService, error) {
 
 // Raft 模式下构造 Storage + StateMachine + Node + gRPC server + KVService
 func buildRaftMode(appCfg *configs.AppConfig) (services.KVService, func(), error) {
-	st, err := store.NewStorage(appCfg.Self.Storage)
+	st, err := storage.NewStorage(appCfg.Self.Storage)
 	if err != nil {
 		return nil, nil, err
 	}
-	sm := &store.KVStateMachine{St: st}
+	sm := &raft_store.KVStateMachine{St: st}
 	transport, err := raft_rpc.NewGRPCTransport(appCfg.Raft.Nodes)
 	if err != nil {
 		return nil, nil, err
 	}
-	node := raft.NewNode(*appCfg, sm, transport)
+	hsStore, logStore := raft_store.NewHardStateStore(st), raft_store.NewRaftLogStore(st)
+	node := raft.NewNode(*appCfg, sm, logStore, hsStore, transport)
 	node.Start()
 
 	// 启动 Raft gRPC server，监听内部端口（可单独配置）

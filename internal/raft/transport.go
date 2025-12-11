@@ -1,6 +1,9 @@
 package raft
 
-import "context"
+import (
+	"context"
+	"distributed-kv-store/internal/raft/raft_store"
+)
 
 // AppendEntries RPC 请求与响应
 
@@ -18,7 +21,7 @@ type AppendEntriesRequest struct {
 	LeaderID     string
 	PrevLogIndex uint64
 	PrevLogTerm  uint64
-	Entries      []LogEntry
+	Entries      []raft_store.LogEntry
 	LeaderCommit uint64
 }
 
@@ -72,7 +75,13 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 	if len(req.Entries) == 0 {
 		// 更新 commitIndex
 		if req.LeaderCommit > n.commitIndex {
-			n.commitIndex = min(req.LeaderCommit, uint64(len(n.log)))
+			var lastIndex uint64
+			if n.logStore != nil {
+				if li, err := n.logStore.LastIndex(); err == nil {
+					lastIndex = li
+				}
+			}
+			n.commitIndex = min(req.LeaderCommit, lastIndex)
 		}
 		resp.Success = true
 		resp.Term = n.term
@@ -80,13 +89,24 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 	}
 
 	// 校验 prevLogIndex / prevLogTerm 是否匹配
-	if int(req.PrevLogIndex) > len(n.log) {
+	var lastIndex uint64
+	if n.logStore != nil {
+		if li, err := n.logStore.LastIndex(); err == nil {
+			lastIndex = li
+		}
+	}
+	if req.PrevLogIndex > lastIndex {
 		resp.Success = false
 		resp.Message = "missing prevLogIndex"
 		return resp, nil
 	}
 	if req.PrevLogIndex > 0 {
-		localTerm := n.log[req.PrevLogIndex-1].Term
+		var localTerm uint64
+		if n.logStore != nil {
+			if t, err := n.logStore.Term(req.PrevLogIndex); err == nil {
+				localTerm = t
+			}
+		}
 		if localTerm != req.PrevLogTerm {
 			// 简化：删除从 prevLogIndex 开始的冲突条目
 			resp.Success = false
@@ -96,13 +116,27 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 	}
 
 	// 截断冲突之后的日志，并追加来自 Leader 的 entries
-	if req.PrevLogIndex < uint64(len(n.log)) {
-		n.log = n.log[:req.PrevLogIndex]
+	if n.logStore != nil {
+		// 从 PrevLogIndex 之后的位置开始截断，即删除 [PrevLogIndex+1, ...]
+		if err := n.logStore.TruncateFrom(req.PrevLogIndex + 1); err != nil {
+			resp.Success = false
+			resp.Message = "truncate log failed"
+			return resp, nil
+		}
+		if err := n.logStore.Append(req.Entries); err != nil {
+			resp.Success = false
+			resp.Message = "append log failed"
+			return resp, nil
+		}
 	}
-	n.log = append(n.log, req.Entries...)
 
 	// 更新 commitIndex
-	lastNewIndex := uint64(len(n.log))
+	lastNewIndex := lastIndex
+	if n.logStore != nil {
+		if li, err := n.logStore.LastIndex(); err == nil {
+			lastNewIndex = li
+		}
+	}
 	if req.LeaderCommit > n.commitIndex {
 		n.commitIndex = min(req.LeaderCommit, lastNewIndex)
 	}
@@ -135,10 +169,17 @@ func (n *Node) HandleRequestVote(ctx context.Context, req *RequestVoteRequest) (
 	}
 
 	// 检查候选人的日志是否至少与自己一样新
-	lastIndex := uint64(len(n.log))
+	var lastIndex uint64
 	var lastTerm uint64
-	if lastIndex > 0 {
-		lastTerm = n.log[lastIndex-1].Term
+	if n.logStore != nil {
+		if li, err := n.logStore.LastIndex(); err == nil {
+			lastIndex = li
+			if lastIndex > 0 {
+				if lt, err := n.logStore.Term(lastIndex); err == nil {
+					lastTerm = lt
+				}
+			}
+		}
 	}
 
 	upToDate := false

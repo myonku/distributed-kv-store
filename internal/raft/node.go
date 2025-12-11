@@ -3,7 +3,7 @@ package raft
 import (
 	"context"
 	"distributed-kv-store/configs"
-	"distributed-kv-store/internal/store"
+	"distributed-kv-store/internal/raft/raft_store"
 	"sync"
 	"time"
 )
@@ -38,12 +38,11 @@ type Node struct {
 
 	id    string
 	role  Role
-	cfg   *configs.AppConfig // 配置引用
+	cfg   *configs.AppConfig
 	peers []configs.RaftPeer
 
 	term        uint64
 	votedFor    string
-	log         []LogEntry
 	commitIndex uint64
 	lastApplied uint64
 	voteCount   int // 当前任期内已获得的选票数（包含自己）
@@ -52,13 +51,15 @@ type Node struct {
 	nextIndex  map[string]uint64 // 下一个要发送给该 follower 的日志条目索引
 	matchIndex map[string]uint64 // 已知该 follower 已复制的最高日志条目索引
 
-	sm        store.StateMachine // 底层状态机
-	transport Transport          // 网络层
+	logStore  raft_store.RaftLogStore   // 日志存储
+	hardStore raft_store.HardStateStore // term / votedFor / commitIndex 等持久化状态
+
+	sm        raft_store.StateMachine // 底层状态机（KV 状态机）
+	transport Transport               // 网络层
 	applyCh   chan ApplyResult
 
-	// 选举、心跳相关
-	electionTimeout  time.Duration
-	heartbeatTimeout time.Duration
+	electionTimeout  time.Duration // 选举超时
+	heartbeatTimeout time.Duration // 心跳间隔
 
 	// 关闭控制
 	ctx    context.Context
@@ -66,7 +67,12 @@ type Node struct {
 }
 
 // 创建一个新的 Raft 节点实例
-func NewNode(cfg configs.AppConfig, sm store.StateMachine, transport Transport) *Node {
+func NewNode(
+	cfg configs.AppConfig,
+	sm raft_store.StateMachine,
+	logStore raft_store.RaftLogStore,
+	hardStore raft_store.HardStateStore,
+	transport Transport) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	node := &Node{
@@ -74,9 +80,10 @@ func NewNode(cfg configs.AppConfig, sm store.StateMachine, transport Transport) 
 		role:       Follower,
 		cfg:        &cfg,
 		peers:      cfg.Raft.Nodes,
-		log:        make([]LogEntry, 0),
 		nextIndex:  make(map[string]uint64),
 		matchIndex: make(map[string]uint64),
+		logStore:   logStore,
+		hardStore:  hardStore,
 		sm:         sm,
 	}
 	node.transport = transport

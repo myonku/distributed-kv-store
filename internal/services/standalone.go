@@ -2,20 +2,20 @@ package services
 
 import (
 	"context"
-	"distributed-kv-store/internal/store"
+	"distributed-kv-store/internal/storage"
 )
 
 // 单机模式下的 KVService 实现。
 type StandaloneKVService struct {
-	st store.Storage
+	st storage.Storage
 }
 
-func NewStandaloneKVService(st store.Storage) KVService {
+func NewStandaloneKVService(st storage.Storage) KVService {
 	return &StandaloneKVService{st: st}
 }
 
 func (s *StandaloneKVService) Put(ctx context.Context, key, value string) error {
-	cmd := store.Command{
+	cmd := storage.Command{
 		Op:    "put",
 		Key:   key,
 		Value: value,
@@ -29,7 +29,7 @@ func (s *StandaloneKVService) Get(ctx context.Context, key string) (string, erro
 }
 
 func (s *StandaloneKVService) Delete(ctx context.Context, key string) error {
-	cmd := store.Command{
+	cmd := storage.Command{
 		Op:  "delete",
 		Key: key,
 	}

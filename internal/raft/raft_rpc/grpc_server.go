@@ -3,7 +3,8 @@ package raft_rpc
 import (
 	context "context"
 	"distributed-kv-store/internal/raft"
-	"distributed-kv-store/internal/store"
+	"distributed-kv-store/internal/raft/raft_store"
+	"distributed-kv-store/internal/storage"
 )
 
 // RaftServiceServer 的实现，内部持有 *Node
@@ -24,13 +25,13 @@ func (s *RaftGRPCServer) AppendEntries(ctx context.Context, req *AppendEntriesRe
 		LeaderID:     req.LeaderId,
 		PrevLogIndex: req.PrevLogIndex,
 		PrevLogTerm:  req.PrevLogTerm,
-		Entries:      make([]raft.LogEntry, 0, len(req.Entries)),
+		Entries:      make([]raft_store.LogEntry, 0, len(req.Entries)),
 		LeaderCommit: req.LeaderCommit,
 	}
 
 	for _, e := range req.Entries {
-		var cmd store.Command
-		internalReq.Entries = append(internalReq.Entries, raft.LogEntry{
+		var cmd storage.Command
+		internalReq.Entries = append(internalReq.Entries, raft_store.LogEntry{
 			Index: e.Index,
 			Term:  e.Term,
 			Cmd:   cmd,

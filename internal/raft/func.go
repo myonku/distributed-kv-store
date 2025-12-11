@@ -3,30 +3,46 @@ package raft
 import (
 	"context"
 	"distributed-kv-store/internal/errors"
-	"distributed-kv-store/internal/store"
+	"distributed-kv-store/internal/raft/raft_store"
+	"distributed-kv-store/internal/storage"
 )
 
 // 上层写请求的统一入口（只在 Leader 上成功）
-func (n *Node) Propose(ctx context.Context, cmd store.Command) (ApplyResult, error) {
+func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, error) {
 	if !n.IsLeader() {
 		return ApplyResult{}, errors.ErrNotLeader
 	}
 
 	// 简化实现：
 	// 1. 在本地日志尾部追加一条 entry；
-	// 2. 直接将 commitIndex 推进到该 entry；
-	// 3. 真实实现中，这一步应等待多数派复制成功再推进 commitIndex，并通过 applyCh 等待状态机应用完成。
+	// 2. 应等待多数派复制成功再推进 commitIndex，并通过 applyCh 等待状态机应用完成。
 
-	var entry LogEntry
+	var entry raft_store.LogEntry
+
+	// 计算新的日志索引
+	if n.logStore == nil {
+		return ApplyResult{}, errors.ErrNotLeader
+	}
+	lastIndex, err := n.logStore.LastIndex()
+	if err != nil {
+		return ApplyResult{}, err
+	}
 
 	n.mu.Lock()
-	newIndex := uint64(len(n.log)) + 1
-	entry = LogEntry{
+	term := n.term
+	n.mu.Unlock()
+
+	newIndex := lastIndex + 1
+	entry = raft_store.LogEntry{
 		Index: newIndex,
-		Term:  n.term,
+		Term:  term,
 		Cmd:   cmd,
 	}
-	n.log = append(n.log, entry)
+	if err := n.logStore.Append([]raft_store.LogEntry{entry}); err != nil {
+		return ApplyResult{}, err
+	}
+
+	n.mu.Lock()
 	if newIndex > n.commitIndex {
 		n.commitIndex = newIndex
 	}
