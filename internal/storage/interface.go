@@ -44,4 +44,6 @@ type Storage interface {
 	// Raft 硬状态相关接口
 	SaveRaftHardState(ctx context.Context, hs RaftHardState) error // 持久化保存当前 Raft 硬状态
 	LoadRaftHardState(ctx context.Context) (RaftHardState, error)  // 读取上次保存的 Raft 硬状态
+
+	Close() error // 关闭存储，释放资源
 }

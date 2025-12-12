@@ -29,6 +29,10 @@ func NewStorage(cfg configs.StorageConfig) (Storage, error) {
 	}, nil
 }
 
+func (m *memoryStorage) Close() error {
+	return nil
+}
+
 func (m *memoryStorage) AppendLog(ctx context.Context, cmd Command) (uint64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -109,9 +113,7 @@ func (m *memoryStorage) AppendRaftLog(ctx context.Context, entries []RaftLogEntr
 	}
 
 	// 简化：假设 Index 从 1 开始，且不会出现“插入中间”情况。
-	for _, e := range entries {
-		m.raftLogs = append(m.raftLogs, e)
-	}
+	m.raftLogs = append(m.raftLogs, entries...)
 	return nil
 }
 

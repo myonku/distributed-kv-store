@@ -13,7 +13,6 @@ type RaftLogStore interface {
 	Entry(index uint64) (LogEntry, error)        // 获取指定索引的日志条目
 	LastIndex() (uint64, error)                  // 获取当前最大日志索引
 	TruncateFrom(index uint64) error             // 从指定索引开始截断日志
-	Close() error
 }
 
 // 日志条目
@@ -36,8 +35,7 @@ func (r *raftLogStore) Append(entries []LogEntry) error {
 		return nil
 	}
 
-	// 将 raft_store.LogEntry 转为 storage.RaftLogEntry 交给底层存储，
-	// 具体落盘细节由 Storage 的实现决定。
+	// 将 raft_store.LogEntry 转为 storage.RaftLogEntry 交给底层存储
 	raftEntries := make([]storage.RaftLogEntry, 0, len(entries))
 	for _, e := range entries {
 		raftEntries = append(raftEntries, storage.RaftLogEntry{

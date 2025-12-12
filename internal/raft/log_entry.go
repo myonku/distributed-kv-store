@@ -21,8 +21,7 @@ func (n *Node) runApplyLoop() {
 
 		n.mu.Lock()
 		if n.commitIndex > n.lastApplied {
-			// 日志索引从 1 开始
-			idx = n.lastApplied + 1
+			idx = n.lastApplied + 1 // 日志索引从 1 开始
 			n.lastApplied = idx
 			ok = true
 		}
@@ -54,7 +53,6 @@ func (n *Node) runApplyLoop() {
 // 内部调用：实际执行 Apply
 func (n *Node) applyEntry(entry raft_store.LogEntry) {
 	if n.sm != nil {
-		// 这里忽略返回错误，只在 ApplyResult 中透出
 		if err := n.sm.Apply(entry.Index, entry.Cmd); err != nil {
 			select {
 			case n.applyCh <- ApplyResult{Index: entry.Index, Term: entry.Term, Err: err}:

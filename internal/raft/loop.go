@@ -53,6 +53,12 @@ func (n *Node) handleElectionTimeout() {
 	n.term++
 	n.votedFor = n.id
 	n.voteCount = 1 // 先算上自己的一票
+	// 持久化当前任期和投票信息
+	n.hardStore.Save(raft_store.HardState{
+		Term:        n.term,
+		VotedFor:    n.votedFor,
+		CommitIndex: n.commitIndex,
+	})
 
 	// 记录当前任期和日志信息，用于构造 RequestVote
 	currentTerm := n.term
@@ -108,6 +114,11 @@ func (n *Node) handleElectionTimeout() {
 				n.term = resp.Term
 				n.role = Follower
 				n.votedFor = ""
+				n.hardStore.Save(raft_store.HardState{
+					Term:        n.term,
+					VotedFor:    n.votedFor,
+					CommitIndex: n.commitIndex,
+				})
 				return
 			}
 
@@ -228,6 +239,11 @@ func (n *Node) broadcastHeartbeat() {
 				n.term = resp.Term
 				n.role = Follower
 				n.votedFor = ""
+				n.hardStore.Save(raft_store.HardState{
+					Term:        n.term,
+					VotedFor:    n.votedFor,
+					CommitIndex: n.commitIndex,
+				})
 				return
 			}
 
@@ -269,6 +285,12 @@ func (n *Node) broadcastHeartbeat() {
 				}
 				if N > n.commitIndex {
 					n.commitIndex = N
+					// 持久化 commitIndex
+					n.hardStore.Save(raft_store.HardState{
+						Term:        n.term,
+						VotedFor:    n.votedFor,
+						CommitIndex: n.commitIndex,
+					})
 				}
 			} else {
 				// 复制失败（例如 prevLog 不匹配），查找性地回退 nextIndex

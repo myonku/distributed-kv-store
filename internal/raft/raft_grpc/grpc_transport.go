@@ -1,4 +1,4 @@
-package raft_rpc
+package raft_grpc
 
 import (
 	context "context"
@@ -47,10 +47,7 @@ func (t *GRPCTransport) Close() error {
 }
 
 // 发送 AppendEntries RPC
-func (t *GRPCTransport) SendAppendEntries(
-	ctx context.Context, to string,
-	req *raft.AppendEntriesRequest) (*raft.AppendEntriesResponse, error) {
-
+func (t *GRPCTransport) SendAppendEntries(ctx context.Context, to string, req *raft.AppendEntriesRequest) (*raft.AppendEntriesResponse, error) {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
@@ -90,10 +87,7 @@ func (t *GRPCTransport) SendAppendEntries(
 }
 
 // 发送 RequestVote RPC
-func (t *GRPCTransport) SendRequestVote(
-	ctx context.Context, to string,
-	req *raft.RequestVoteRequest) (*raft.RequestVoteResponse, error) {
-
+func (t *GRPCTransport) SendRequestVote(ctx context.Context, to string, req *raft.RequestVoteRequest) (*raft.RequestVoteResponse, error) {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()

@@ -27,10 +27,12 @@ func main() {
 	}
 
 	// 根据运行模式选择 KVService 实现
-	svc, err := buildKVService(appCfg)
+	_, svc, err := buildKVService(appCfg)
 	if err != nil {
 		log.Fatalf("build kv service failed: %v", err)
 	}
+
+	// TODO: 此处组装 gRPC 服务器，注册 Raft RPC 服务等逻辑
 
 	ctx, cancel := signalContext()
 	defer cancel()

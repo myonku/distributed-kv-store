@@ -2,6 +2,7 @@ package raft_store
 
 import (
 	"context"
+	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/storage"
 )
 
@@ -17,13 +18,13 @@ type KVStateMachine struct {
 
 // Apply 应用日志到状态机
 func (sm *KVStateMachine) Apply(index uint64, cmd storage.Command) error {
-	// 这里可以直接走 Storage 的接口
 	idx, err := sm.St.AppendLog(context.TODO(), cmd)
 	if err != nil {
 		return err
 	}
 	if idx != index {
-		// 对齐逻辑，早期可以不管
+		// 正常情况下不应发生
+		return errors.ErrLogIndexMismatch
 	}
 	return sm.St.ApplyLog(context.TODO(), idx)
 }

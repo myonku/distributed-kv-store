@@ -61,7 +61,6 @@ type Node struct {
 	electionTimeout  time.Duration // 选举超时
 	heartbeatTimeout time.Duration // 心跳间隔
 
-	// 关闭控制
 	ctx    context.Context
 	cancel context.CancelFunc
 }
