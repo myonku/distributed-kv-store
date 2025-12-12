@@ -51,12 +51,12 @@ type Node struct {
 	nextIndex  map[string]uint64 // 下一个要发送给该 follower 的日志条目索引
 	matchIndex map[string]uint64 // 已知该 follower 已复制的最高日志条目索引
 
-	logStore  raft_store.RaftLogStore   // 日志存储
-	hardStore raft_store.HardStateStore // term / votedFor / commitIndex 等持久化状态
+	logStore       raft_store.RaftLogStore   // 日志存储
+	hardStateStore raft_store.HardStateStore // term / votedFor / commitIndex 等持久化状态
 
 	sm        raft_store.StateMachine // 底层状态机（KV 状态机）
 	transport Transport               // 网络层
-	applyCh   chan ApplyResult
+	applyCh   chan ApplyResult        // 应用结果通道
 
 	electionTimeout  time.Duration // 选举超时
 	heartbeatTimeout time.Duration // 心跳间隔
@@ -71,20 +71,20 @@ func NewNode(
 	cfg configs.AppConfig,
 	sm raft_store.StateMachine,
 	logStore raft_store.RaftLogStore,
-	hardStore raft_store.HardStateStore,
+	hardStateStore raft_store.HardStateStore,
 	transport Transport) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	node := &Node{
-		id:         cfg.Self.ID,
-		role:       Follower,
-		cfg:        &cfg,
-		peers:      cfg.Raft.Nodes,
-		nextIndex:  make(map[string]uint64),
-		matchIndex: make(map[string]uint64),
-		logStore:   logStore,
-		hardStore:  hardStore,
-		sm:         sm,
+		id:             cfg.Self.ID,
+		role:           Follower,
+		cfg:            &cfg,
+		peers:          cfg.Raft.Nodes,
+		nextIndex:      make(map[string]uint64),
+		matchIndex:     make(map[string]uint64),
+		logStore:       logStore,
+		hardStateStore: hardStateStore,
+		sm:             sm,
 	}
 	node.transport = transport
 	node.applyCh = make(chan ApplyResult, 100)

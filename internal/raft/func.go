@@ -5,17 +5,31 @@ import (
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft/raft_store"
 	"distributed-kv-store/internal/storage"
+	"time"
 )
+
+// 初始化时加载HardState和日志
+func (n *Node) LoadState() error {
+	hs, err := n.hardStateStore.Load()
+	if err != nil {
+		return err
+	}
+	n.term = hs.Term
+	n.votedFor = hs.VotedFor
+	n.commitIndex = hs.CommitIndex
+	lastIndex, err := n.logStore.LastIndex()
+	if err != nil {
+		return err
+	}
+	n.lastApplied = lastIndex
+	return nil
+}
 
 // 上层写请求的统一入口（只在 Leader 上成功）
 func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, error) {
 	if !n.IsLeader() {
 		return ApplyResult{}, errors.ErrNotLeader
 	}
-
-	// 简化实现：
-	// 1. 在本地日志尾部追加一条 entry；
-	// 2. 应等待多数派复制成功再推进 commitIndex，并通过 applyCh 等待状态机应用完成。
 
 	var entry raft_store.LogEntry
 
@@ -42,17 +56,42 @@ func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, e
 		return ApplyResult{}, err
 	}
 
-	n.mu.Lock()
-	if newIndex > n.commitIndex {
-		n.commitIndex = newIndex
+	// 触发一次心跳/日志复制
+	if n.transport != nil {
+		go n.broadcastHeartbeat()
 	}
-	n.mu.Unlock()
 
-	// 占位：此处应触发向 followers 发送 AppendEntries 复制日志
-	// TODO: 调用内部复制逻辑，通过 transport 将 entry 发送给 peers
+	// 等待该日志被多数节点复制
+	if err := n.waitForCommit(ctx, newIndex); err != nil {
+		return ApplyResult{}, err
+	}
 
-	// 简化：直接返回追加成功的结果，不等待真正的 apply 完成
+	// 可以在这里再增加一层对 applyCh 的等待逻辑，确保日志被应用到状态机后再返回。
 	return ApplyResult{Index: entry.Index, Term: entry.Term, Err: nil}, nil
+}
+
+// 等待 commitIndex 推进到指定 index，表示该日志已在多数节点上复制成功。
+func (n *Node) waitForCommit(ctx context.Context, index uint64) error {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		n.mu.Lock()
+		committed := n.commitIndex >= index
+		n.mu.Unlock()
+		// 日志已提交，返回成功
+		if committed {
+			return nil
+		}
+		select {
+		case <-ctx.Done(): // 调用方超时或取消
+			return ctx.Err()
+		case <-n.ctx.Done(): // 节点本身被关闭
+			return context.Canceled
+		case <-ticker.C: // 继续下一轮检查
+
+		}
+	}
 }
 
 // 返回节点当前状态 snapshot

@@ -53,6 +53,12 @@ func (n *Node) handleElectionTimeout() {
 	n.term++
 	n.votedFor = n.id
 	n.voteCount = 1 // 先算上自己的一票
+	// 持久化当前任期和投票信息
+	n.hardStateStore.Save(raft_store.HardState{
+		Term:        n.term,
+		VotedFor:    n.votedFor,
+		CommitIndex: n.commitIndex,
+	})
 
 	// 记录当前任期和日志信息，用于构造 RequestVote
 	currentTerm := n.term
@@ -96,7 +102,7 @@ func (n *Node) handleElectionTimeout() {
 
 			resp, err := n.transport.SendRequestVote(ctx, peerID, req)
 			if err != nil || resp == nil {
-				// 简化：忽略错误，等下一轮选举重试
+				// 忽略错误，等下一轮选举重试
 				return
 			}
 
@@ -108,6 +114,11 @@ func (n *Node) handleElectionTimeout() {
 				n.term = resp.Term
 				n.role = Follower
 				n.votedFor = ""
+				n.hardStateStore.Save(raft_store.HardState{
+					Term:        n.term,
+					VotedFor:    n.votedFor,
+					CommitIndex: n.commitIndex,
+				})
 				return
 			}
 
@@ -152,11 +163,11 @@ func (n *Node) broadcastHeartbeat() {
 
 	// 读取当前 leader 的任期、日志、nextIndex 等状态
 	n.mu.Lock()
+
 	if n.role != Leader {
 		n.mu.Unlock()
 		return
 	}
-
 	term := n.term
 	leaderID := n.id
 	leaderCommit := n.commitIndex
@@ -228,6 +239,12 @@ func (n *Node) broadcastHeartbeat() {
 				n.term = resp.Term
 				n.role = Follower
 				n.votedFor = ""
+				// 持久化当前任期和投票信息
+				n.hardStateStore.Save(raft_store.HardState{
+					Term:        n.term,
+					VotedFor:    n.votedFor,
+					CommitIndex: n.commitIndex,
+				})
 				return
 			}
 
@@ -269,6 +286,12 @@ func (n *Node) broadcastHeartbeat() {
 				}
 				if N > n.commitIndex {
 					n.commitIndex = N
+					// 持久化 commitIndex 更新
+					n.hardStateStore.Save(raft_store.HardState{
+						Term:        n.term,
+						VotedFor:    n.votedFor,
+						CommitIndex: n.commitIndex,
+					})
 				}
 			} else {
 				// 复制失败（例如 prevLog 不匹配），查找性地回退 nextIndex

@@ -67,6 +67,11 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 		n.term = req.Term
 		n.role = Follower
 		n.votedFor = ""
+		n.hardStateStore.Save(raft_store.HardState{
+			Term:        n.term,
+			VotedFor:    n.votedFor,
+			CommitIndex: n.commitIndex,
+		})
 	}
 
 	// TODO: 在此处重置选举超时相关状态
@@ -82,6 +87,11 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 				}
 			}
 			n.commitIndex = min(req.LeaderCommit, lastIndex)
+			n.hardStateStore.Save(raft_store.HardState{
+				Term:        n.term,
+				VotedFor:    n.votedFor,
+				CommitIndex: n.commitIndex,
+			})
 		}
 		resp.Success = true
 		resp.Term = n.term
@@ -139,6 +149,11 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 	}
 	if req.LeaderCommit > n.commitIndex {
 		n.commitIndex = min(req.LeaderCommit, lastNewIndex)
+		n.hardStateStore.Save(raft_store.HardState{
+			Term:        n.term,
+			VotedFor:    n.votedFor,
+			CommitIndex: n.commitIndex,
+		})
 	}
 
 	resp.Success = true
@@ -166,6 +181,11 @@ func (n *Node) HandleRequestVote(ctx context.Context, req *RequestVoteRequest) (
 		n.term = req.Term
 		n.role = Follower
 		n.votedFor = ""
+		n.hardStateStore.Save(raft_store.HardState{
+			Term:        n.term,
+			VotedFor:    n.votedFor,
+			CommitIndex: n.commitIndex,
+		})
 	}
 
 	// 检查候选人的日志是否至少与自己一样新

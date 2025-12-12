@@ -20,6 +20,13 @@ type memoryStorage struct {
 	raftHardState *RaftHardState // 当前 Raft 硬状态（如未设置则为 nil）
 }
 
+// Close implements Storage.
+func (m *memoryStorage) Close() error {
+	// 内存存储无需特殊清理
+	return nil
+}
+
+// 返回全局的最底层存储实例
 func NewStorage(cfg configs.StorageConfig) (Storage, error) {
 	return &memoryStorage{
 		data:          make(map[string]string),
@@ -109,9 +116,7 @@ func (m *memoryStorage) AppendRaftLog(ctx context.Context, entries []RaftLogEntr
 	}
 
 	// 简化：假设 Index 从 1 开始，且不会出现“插入中间”情况。
-	for _, e := range entries {
-		m.raftLogs = append(m.raftLogs, e)
-	}
+	m.raftLogs = append(m.raftLogs, entries...)
 	return nil
 }
 

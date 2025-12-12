@@ -26,13 +26,17 @@ func main() {
 		log.Fatalf("read config failed: %v", err)
 	}
 
+	// TODO: 构造 gRPC server，并注册 Raft Transport 服务
+
 	// 根据运行模式选择 KVService 实现
-	svc, err := buildKVService(appCfg)
+	_, svc, err := buildKVService(appCfg) // 返回的 st 需要在 main 中清理
 	if err != nil {
 		log.Fatalf("build kv service failed: %v", err)
 	}
 
 	ctx, cancel := signalContext()
+	// defer 清理资源
+	// TODO: 根据模式选择清理存储、Node、gRPC server 等
 	defer cancel()
 
 	if err := api.StartHTTPServer(ctx, appCfg.Self.HTTPAddress, svc); err != nil {

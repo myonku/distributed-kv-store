@@ -25,8 +25,7 @@ type RaftHardState struct {
 }
 
 // 对底层存储的抽象：
-// - 同时服务于业务 KV（Standalone/状态机）、Raft 日志和 Raft 硬状态；
-// - 具体实现可以通过前缀、分表等方式将不同上层的数据隔离开来。
+// - 同时服务于业务 KV（Standalone/状态机）、Raft 日志和 Raft 硬状态
 type Storage interface {
 	// 业务 KV 日志 + 状态机
 	AppendLog(ctx context.Context, cmd Command) (index uint64, err error) // 添加一条业务日志记录，返回该日志的索引
@@ -44,4 +43,7 @@ type Storage interface {
 	// Raft 硬状态相关接口
 	SaveRaftHardState(ctx context.Context, hs RaftHardState) error // 持久化保存当前 Raft 硬状态
 	LoadRaftHardState(ctx context.Context) (RaftHardState, error)  // 读取上次保存的 Raft 硬状态
+
+	// 关闭存储，释放资源
+	Close() error
 }

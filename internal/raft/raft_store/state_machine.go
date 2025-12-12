@@ -5,25 +5,28 @@ import (
 	"distributed-kv-store/internal/storage"
 )
 
-// 定义应用于状态机的接口
+// StateMachine 抽象：Raft 日志 commit 后由 Node 调用
 type StateMachine interface {
 	Apply(index uint64, cmd storage.Command) error
 }
 
-// 状态机接口：Raft 日志 commit 后调用
+// 基于 Storage 的简单 KV 状态机实现。
+// 在 Raft 模式下：
+//   - Raft 自己维护一份 raft log；
+//   - 这里再在 Storage 上维护一份业务 WAL（AppendLog + ApplyLog），用于重放和查询。
 type KVStateMachine struct {
 	St storage.Storage
 }
 
-// Apply 应用日志到状态机
+// 按 Raft 提交顺序将命令追加到底层 WAL，并应用到状态机
 func (sm *KVStateMachine) Apply(index uint64, cmd storage.Command) error {
-	// 这里可以直接走 Storage 的接口
 	idx, err := sm.St.AppendLog(context.TODO(), cmd)
 	if err != nil {
 		return err
 	}
 	if idx != index {
-		// 对齐逻辑，早期可以不管
+		// 理论上不应该发生
+		return nil
 	}
 	return sm.St.ApplyLog(context.TODO(), idx)
 }

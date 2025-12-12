@@ -4,7 +4,7 @@
 // - protoc             v6.33.2
 // source: internal/raft/r.proto
 
-package raft_rpc
+package raft_grpc
 
 import (
 	context "context"

@@ -54,7 +54,6 @@ func (n *Node) runApplyLoop() {
 // 内部调用：实际执行 Apply
 func (n *Node) applyEntry(entry raft_store.LogEntry) {
 	if n.sm != nil {
-		// 这里忽略返回错误，只在 ApplyResult 中透出
 		if err := n.sm.Apply(entry.Index, entry.Cmd); err != nil {
 			select {
 			case n.applyCh <- ApplyResult{Index: entry.Index, Term: entry.Term, Err: err}:
