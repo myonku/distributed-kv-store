@@ -54,7 +54,7 @@ func (n *Node) handleElectionTimeout() {
 	n.votedFor = n.id
 	n.voteCount = 1 // 先算上自己的一票
 	// 持久化当前任期和投票信息
-	n.hardStore.Save(raft_store.HardState{
+	n.hardStateStore.Save(raft_store.HardState{
 		Term:        n.term,
 		VotedFor:    n.votedFor,
 		CommitIndex: n.commitIndex,
@@ -76,16 +76,17 @@ func (n *Node) handleElectionTimeout() {
 	}
 
 	// 拷贝 peers 列表供锁外使用
-	peers := append([]configs.RaftPeer(nil), n.peers...)
+	peersSnapshot := make(map[string]configs.RaftPeer, len(n.peers))
+	maps.Copy(peersSnapshot, n.peers)
 	n.mu.Unlock()
 
 	if n.transport == nil {
 		return
 	}
 
-	for _, p := range peers {
+	for id, p := range peersSnapshot {
 		// 不给自己发 RequestVote
-		if p.ID == n.id {
+		if id == n.id {
 			continue
 		}
 
@@ -114,7 +115,7 @@ func (n *Node) handleElectionTimeout() {
 				n.term = resp.Term
 				n.role = Follower
 				n.votedFor = ""
-				n.hardStore.Save(raft_store.HardState{
+				n.hardStateStore.Save(raft_store.HardState{
 					Term:        n.term,
 					VotedFor:    n.votedFor,
 					CommitIndex: n.commitIndex,
@@ -172,9 +173,10 @@ func (n *Node) broadcastHeartbeat() {
 	leaderID := n.id
 	leaderCommit := n.commitIndex
 	nextIdxSnapshot := make(map[string]uint64, len(n.nextIndex))
+	peersSnapshot := make(map[string]configs.RaftPeer, len(n.peers))
 	maps.Copy(nextIdxSnapshot, n.nextIndex)
+	maps.Copy(peersSnapshot, n.peers)
 
-	peers := append([]configs.RaftPeer(nil), n.peers...)
 	n.mu.Unlock()
 
 	var lastIndex uint64
@@ -184,8 +186,8 @@ func (n *Node) broadcastHeartbeat() {
 		}
 	}
 
-	for _, p := range peers {
-		if p.ID == leaderID {
+	for id, p := range peersSnapshot {
+		if id == n.id {
 			continue
 		}
 
@@ -239,7 +241,7 @@ func (n *Node) broadcastHeartbeat() {
 				n.term = resp.Term
 				n.role = Follower
 				n.votedFor = ""
-				n.hardStore.Save(raft_store.HardState{
+				n.hardStateStore.Save(raft_store.HardState{
 					Term:        n.term,
 					VotedFor:    n.votedFor,
 					CommitIndex: n.commitIndex,
@@ -286,7 +288,7 @@ func (n *Node) broadcastHeartbeat() {
 				if N > n.commitIndex {
 					n.commitIndex = N
 					// 持久化 commitIndex
-					n.hardStore.Save(raft_store.HardState{
+					n.hardStateStore.Save(raft_store.HardState{
 						Term:        n.term,
 						VotedFor:    n.votedFor,
 						CommitIndex: n.commitIndex,
@@ -310,4 +312,124 @@ func (n *Node) broadcastHeartbeat() {
 			}
 		}(p.ID, req, term)
 	}
+}
+
+// 内部 goroutine：把 commitIndex 之前的日志逐条 Apply 到状态机
+func (n *Node) runApplyLoop() {
+	for {
+		select {
+		case <-n.ctx.Done():
+			return
+		default:
+		}
+
+		var entry raft_store.LogEntry
+		var ok bool
+		var idx uint64
+
+		n.mu.Lock()
+		if n.commitIndex > n.lastApplied {
+			idx = n.lastApplied + 1 // 日志索引从 1 开始
+			n.lastApplied = idx
+			ok = true
+		}
+		n.mu.Unlock()
+
+		if !ok {
+			// 没有可应用的日志，稍作休眠避免 busy loop
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		if n.logStore == nil {
+			// 没有日志存储，稍作休眠
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		entry, err := n.logStore.Entry(idx)
+		if err != nil || entry.Index == 0 {
+			// 读取失败或日志不存在，稍作休眠重试
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		n.applyEntry(entry)
+	}
+}
+
+// 内部调用：实际执行 Apply
+func (n *Node) applyEntry(entry raft_store.LogEntry) {
+	switch entry.Type {
+	case raft_store.EntryConfChange:
+		err := n.applyConfChange(entry.Conf)
+		n.notifyApplyResult(entry, err)
+
+	case raft_store.EntryNormal:
+		var err error
+		if n.sm != nil {
+			err = n.sm.Apply(entry.Index, entry.Cmd)
+		}
+		n.notifyApplyResult(entry, err)
+	}
+}
+
+// 通知上层该日志已应用的结果
+func (n *Node) notifyApplyResult(entry raft_store.LogEntry, err error) {
+	select {
+	case n.applyCh <- ApplyResult{
+		Index: entry.Index,
+		Term:  entry.Term,
+		Err:   err,
+	}:
+	case <-n.ctx.Done():
+	}
+}
+
+// 在状态机层面应用一条配置变更日志
+func (n *Node) applyConfChange(cc *configs.ClusterConfigChange) error {
+	if cc == nil {
+		return nil
+	}
+
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	switch cc.Type {
+	case configs.ConfChangeAddNode:
+		// 添加到 peers
+		n.peers[cc.Node.ID] = cc.Node
+
+		// 初始化 leader 侧的 nextIndex / matchIndex
+		if n.role == Leader {
+			var lastIndex uint64
+			if n.logStore != nil {
+				if li, err := n.logStore.LastIndex(); err == nil {
+					lastIndex = li
+				}
+			}
+			n.nextIndex[cc.Node.ID] = lastIndex + 1
+			n.matchIndex[cc.Node.ID] = 0
+		}
+
+		err := n.transport.AddPeer(cc.Node)
+		if err != nil {
+			return err
+		}
+
+	case configs.ConfChangeRemoveNode:
+		// 从 peers 里删掉
+		delete(n.peers, cc.Node.ID)
+
+		// 从 nextIndex / matchIndex 里删掉
+		delete(n.nextIndex, cc.Node.ID)
+		delete(n.matchIndex, cc.Node.ID)
+
+		err := n.transport.RemovePeer(cc.Node.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

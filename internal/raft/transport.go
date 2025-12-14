@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/raft/raft_store"
 )
 
@@ -13,6 +14,10 @@ type Transport interface {
 	SendAppendEntries(ctx context.Context, to string, req *AppendEntriesRequest) (*AppendEntriesResponse, error)
 	// 发送 RequestVote RPC
 	SendRequestVote(ctx context.Context, to string, req *RequestVoteRequest) (*RequestVoteResponse, error)
+	// 添加集群节点
+	AddPeer(peer configs.RaftPeer) error
+	// 移除集群节点
+	RemovePeer(peerID string) error
 }
 
 // AppendEntries RPC
@@ -67,7 +72,7 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 		n.term = req.Term
 		n.role = Follower
 		n.votedFor = ""
-		n.hardStore.Save(raft_store.HardState{
+		n.hardStateStore.Save(raft_store.HardState{
 			Term:        n.term,
 			VotedFor:    n.votedFor,
 			CommitIndex: n.commitIndex,
@@ -88,7 +93,7 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 				}
 			}
 			n.commitIndex = min(req.LeaderCommit, lastIndex)
-			n.hardStore.Save(raft_store.HardState{
+			n.hardStateStore.Save(raft_store.HardState{
 				Term:        n.term,
 				VotedFor:    n.votedFor,
 				CommitIndex: n.commitIndex,
@@ -150,7 +155,7 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 	}
 	if req.LeaderCommit > n.commitIndex {
 		n.commitIndex = min(req.LeaderCommit, lastNewIndex)
-		n.hardStore.Save(raft_store.HardState{
+		n.hardStateStore.Save(raft_store.HardState{
 			Term:        n.term,
 			VotedFor:    n.votedFor,
 			CommitIndex: n.commitIndex,
@@ -182,7 +187,7 @@ func (n *Node) HandleRequestVote(ctx context.Context, req *RequestVoteRequest) (
 		n.term = req.Term
 		n.role = Follower
 		n.votedFor = ""
-		n.hardStore.Save(raft_store.HardState{
+		n.hardStateStore.Save(raft_store.HardState{
 			Term:        n.term,
 			VotedFor:    n.votedFor,
 			CommitIndex: n.commitIndex,

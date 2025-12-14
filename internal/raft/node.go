@@ -38,21 +38,21 @@ type Node struct {
 
 	id    string
 	role  Role
-	cfg   *configs.AppConfig
-	peers []configs.RaftPeer
+	peers map[string]configs.RaftPeer // 运行时成员视图
 
 	term        uint64
 	votedFor    string
 	commitIndex uint64
 	lastApplied uint64
 	voteCount   int // 当前任期内已获得的选票数（包含自己）
+	leaderID    string
 
 	// leader 才使用
 	nextIndex  map[string]uint64 // 下一个要发送给该 follower 的日志条目索引
 	matchIndex map[string]uint64 // 已知该 follower 已复制的最高日志条目索引
 
-	logStore  raft_store.RaftLogStore   // 日志存储
-	hardStore raft_store.HardStateStore // term / votedFor / commitIndex 等持久化状态
+	logStore       raft_store.RaftLogStore   // 日志存储
+	hardStateStore raft_store.HardStateStore // term / votedFor / commitIndex 等持久化状态
 
 	sm        raft_store.StateMachine // 底层状态机（KV 状态机）
 	transport Transport               // 网络层
@@ -67,31 +67,36 @@ type Node struct {
 
 // 创建一个新的 Raft 节点实例
 func NewNode(
-	cfg configs.AppConfig,
+	cfg *configs.AppConfig,
 	sm raft_store.StateMachine,
 	logStore raft_store.RaftLogStore,
-	hardStore raft_store.HardStateStore,
-	transport Transport) *Node {
+	hardStateStore raft_store.HardStateStore,
+	transport Transport,
+) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	node := &Node{
-		id:         cfg.Self.ID,
-		role:       Follower,
-		cfg:        &cfg,
-		peers:      cfg.Raft.Nodes,
-		nextIndex:  make(map[string]uint64),
-		matchIndex: make(map[string]uint64),
-		logStore:   logStore,
-		hardStore:  hardStore,
-		sm:         sm,
+	peersMap := make(map[string]configs.RaftPeer, len(cfg.Raft.Nodes))
+	for _, p := range cfg.Raft.Nodes {
+		peersMap[p.ID] = p
 	}
-	node.transport = transport
-	node.applyCh = make(chan ApplyResult, 100)
-	node.electionTimeout = time.Duration(cfg.Raft.ElectionTimeoutMs) * time.Millisecond
-	node.heartbeatTimeout = time.Duration(cfg.Raft.HeartbeatIntervalMs) * time.Millisecond
-	node.ctx = ctx
-	node.cancel = cancel
-	return node
+
+	n := &Node{
+		id:               cfg.Self.ID,
+		role:             Follower,
+		peers:            peersMap,
+		nextIndex:        make(map[string]uint64),
+		matchIndex:       make(map[string]uint64),
+		logStore:         logStore,
+		hardStateStore:   hardStateStore,
+		sm:               sm,
+		transport:        transport,
+		electionTimeout:  time.Duration(cfg.Raft.ElectionTimeoutMs),
+		heartbeatTimeout: time.Duration(cfg.Raft.HeartbeatIntervalMs),
+		ctx:              ctx,
+		cancel:           cancel,
+	}
+	n.applyCh = make(chan ApplyResult, 100)
+	return n
 }
 
 // 启动内部 goroutine（选举、日志复制）

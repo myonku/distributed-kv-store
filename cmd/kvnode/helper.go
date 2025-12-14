@@ -56,7 +56,7 @@ func buildRaftMode(appCfg *configs.AppConfig) (*storage.Storage, services.KVServ
 		return nil, nil, nil, err
 	}
 	hsStore, logStore := raft_store.NewHardStateStore(st), raft_store.NewRaftLogStore(st)
-	node := raft.NewNode(*appCfg, sm, logStore, hsStore, transport)
+	node := raft.NewNode(appCfg, sm, logStore, hsStore, transport)
 
 	if err := node.LoadState(); err != nil {
 		st.Close()

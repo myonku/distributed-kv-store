@@ -20,7 +20,6 @@ func main() {
 		configPath = os.Args[1]
 	}
 
-	// 此处的配置对象可能在运行时动态更新（内存中），需传递指针
 	appCfg, err := configs.ReadConfig(configPath)
 	if err != nil {
 		log.Fatalf("read config failed: %v", err)

@@ -9,10 +9,6 @@ import (
 )
 
 // 基于 Raft 的分布式 KVService 实现。
-//
-//   - 写操作：只在 Leader 上接受，委托给 raft.Node.Propose；
-//   - 读操作：当前简单实现为只允许 Leader 从本地存储读取，
-//     后续可以扩展为真正的线性一致读（ReadIndex/租约读等）。
 type RaftKVService struct {
 	st   storage.Storage
 	node *raft.Node
@@ -22,9 +18,7 @@ func NewRaftKVService(st storage.Storage, node *raft.Node) KVService {
 	return &RaftKVService{st: st, node: node}
 }
 
-// Put 只在 Leader 节点接受写；非 Leader 返回 ErrNotLeader。
-// 在 Leader 上通过 Raft 日志复制实现主从一致，当前实现未阻塞等待多数派确认，
-// 主要作为调用链示意。
+// 只在 Leader 节点接受写；非 Leader 返回 ErrNotLeader。
 func (s *RaftKVService) Put(ctx context.Context, key, value string) error {
 	if !s.node.IsLeader() {
 		return errors.ErrNotLeader
@@ -39,7 +33,7 @@ func (s *RaftKVService) Put(ctx context.Context, key, value string) error {
 	return err
 }
 
-// Delete 同样只在 Leader 上接受，其他节点返回 ErrNotLeader。
+// 同样只在 Leader 上接受，其他节点返回 ErrNotLeader。
 func (s *RaftKVService) Delete(ctx context.Context, key string) error {
 	if !s.node.IsLeader() {
 		return errors.ErrNotLeader

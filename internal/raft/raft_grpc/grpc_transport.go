@@ -1,7 +1,7 @@
 package raft_grpc
 
 import (
-	context "context"
+	"context"
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft"
@@ -27,7 +27,7 @@ func NewGRPCTransport(peers []configs.RaftPeer) (*GRPCTransport, error) {
 	}
 	for _, p := range peers {
 		options := []grpc.DialOption{grpc.WithInsecure()} // TODO: 配置凭证/超时等
-		conn, err := grpc.Dial(p.GRPCAddress, options...)
+		conn, err := grpc.NewClient(p.GRPCAddress, options...)
 		if err != nil {
 			return nil, fmt.Errorf("dial %s: %w", p.GRPCAddress, err)
 		}
@@ -37,17 +37,12 @@ func NewGRPCTransport(peers []configs.RaftPeer) (*GRPCTransport, error) {
 	return t, nil
 }
 
-func (t *GRPCTransport) Close() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	for _, c := range t.conns {
-		_ = c.Close()
-	}
-	return nil
-}
-
 // 发送 AppendEntries RPC
-func (t *GRPCTransport) SendAppendEntries(ctx context.Context, to string, req *raft.AppendEntriesRequest) (*raft.AppendEntriesResponse, error) {
+func (t *GRPCTransport) SendAppendEntries(
+	ctx context.Context,
+	to string,
+	req *raft.AppendEntriesRequest) (*raft.AppendEntriesResponse, error) {
+
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
@@ -87,7 +82,11 @@ func (t *GRPCTransport) SendAppendEntries(ctx context.Context, to string, req *r
 }
 
 // 发送 RequestVote RPC
-func (t *GRPCTransport) SendRequestVote(ctx context.Context, to string, req *raft.RequestVoteRequest) (*raft.RequestVoteResponse, error) {
+func (t *GRPCTransport) SendRequestVote(
+	ctx context.Context,
+	to string,
+	req *raft.RequestVoteRequest) (*raft.RequestVoteResponse, error) {
+
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
@@ -111,4 +110,50 @@ func (t *GRPCTransport) SendRequestVote(ctx context.Context, to string, req *raf
 		Term:        pbResp.Term,
 		VoteGranted: pbResp.VoteGranted,
 	}, nil
+}
+
+// 添加集群节点
+func (t *GRPCTransport) AddPeer(peer configs.RaftPeer) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if _, exists := t.cli[peer.ID]; exists {
+		// 已存在，覆盖连接
+		_ = t.conns[peer.ID].Close()
+		delete(t.conns, peer.ID)
+		delete(t.cli, peer.ID)
+	}
+	options := []grpc.DialOption{grpc.WithInsecure()} // TODO: 配置凭证/超时等
+	conn, err := grpc.NewClient(peer.GRPCAddress, options...)
+	if err != nil {
+		return fmt.Errorf("dial %s: %w", peer.GRPCAddress, err)
+	}
+	t.conns[peer.ID] = conn
+	t.cli[peer.ID] = NewRaftServiceClient(conn)
+	return nil
+}
+
+// 移除集群节点
+func (t *GRPCTransport) RemovePeer(peerID string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	conn, exists := t.conns[peerID]
+	if !exists {
+		return nil // 不存在，直接返回
+	}
+	err := conn.Close()
+	if err != nil {
+		return err
+	}
+	delete(t.conns, peerID)
+	delete(t.cli, peerID)
+	return nil
+}
+
+func (t *GRPCTransport) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, c := range t.conns {
+		_ = c.Close()
+	}
+	return nil
 }

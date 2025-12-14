@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package raft.v1;
 
-option go_package = "./internal/raft/rpc;raft_rpc";
+option go_package = "./internal/raft/rpc;raft_grpc";
 
 // Raft 日志条目
 message LogEntry {

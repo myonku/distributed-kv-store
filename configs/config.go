@@ -7,11 +7,24 @@ import (
 // 运行模式：Raft 强一致复制，或基于一致性哈希的去中心化分片
 type Mode string
 
+type ConfChangeType int
+
+const (
+	ConfChangeAddNode ConfChangeType = iota
+	ConfChangeRemoveNode
+)
+
 const (
 	ModeStandalone Mode = "standalone"
 	ModeRaft       Mode = "raft"
 	ModeConsHash   Mode = "chash"
 )
+
+// Raft 集群配置变更
+type ClusterConfigChange struct {
+	Type ConfChangeType
+	Node RaftPeer
+}
 
 // 单个节点“自身”的配置（通用）
 type NodeConfig struct {

@@ -2,7 +2,15 @@ package raft_store
 
 import (
 	"context"
+	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/storage"
+)
+
+type LogEntryType int
+
+const (
+	EntryNormal LogEntryType = iota
+	EntryConfChange
 )
 
 // 面向 Raft Node 的日志存储接口
@@ -17,9 +25,11 @@ type RaftLogStore interface {
 
 // 日志条目
 type LogEntry struct {
-	Index uint64          // 日志索引
-	Term  uint64          // 任期号
-	Cmd   storage.Command // 存储命令
+	Index uint64                       // 日志索引
+	Term  uint64                       // 任期号
+	Type  LogEntryType                 // 日志类型
+	Cmd   storage.Command              // Type == EntryNormal 时使用
+	Conf  *configs.ClusterConfigChange // Type == EntryConfChange 时使用
 }
 
 type raftLogStore struct {

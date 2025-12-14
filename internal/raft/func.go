@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft/raft_store"
 	"distributed-kv-store/internal/storage"
@@ -49,6 +50,7 @@ func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, e
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 
+	// 等待日志应用完成或上下文取消
 	for {
 		select {
 		case <-ctx.Done():
@@ -73,6 +75,11 @@ func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, e
 			}
 		}
 	}
+}
+
+// 用于上层或控制面在 Leader 上发起配置变更
+func (n *Node) ProposeConfChange(ctx context.Context, cc configs.ClusterConfigChange) (ApplyResult, error) {
+	return ApplyResult{}, nil
 }
 
 func (n *Node) resetElectionTimeout() {
@@ -103,12 +110,12 @@ func (n *Node) IsLeader() bool {
 func (n *Node) LeaderID() string {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	return n.cfg.Raft.LeaderID
+	return n.leaderID
 }
 
 // 加载持久化状态（term / votedFor / commitIndex）
 func (n *Node) LoadState() error {
-	hardState, err := n.hardStore.Load()
+	hardState, err := n.hardStateStore.Load()
 	if err != nil {
 		return err
 	}
