@@ -26,8 +26,8 @@ func NewGRPCTransport(peers []configs.RaftPeer) (*GRPCTransport, error) {
 		cli:   make(map[string]RaftServiceClient),
 	}
 	for _, p := range peers {
-		options := []grpc.DialOption{} // 根据需要添加选项
-		conn, err := grpc.NewClient(p.GRPCAddress, options...)
+		options := []grpc.DialOption{grpc.WithInsecure()} // TODO: 配置凭证/超时等
+		conn, err := grpc.Dial(p.GRPCAddress, options...)
 		if err != nil {
 			return nil, fmt.Errorf("dial %s: %w", p.GRPCAddress, err)
 		}

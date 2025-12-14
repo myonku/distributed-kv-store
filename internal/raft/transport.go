@@ -74,7 +74,8 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 		})
 	}
 
-	// TODO: 在此处重置选举超时相关状态
+	// 重置选举超时
+	n.resetElectionTimeout()
 
 	// 心跳请求（无日志条目）可快速返回
 	if len(req.Entries) == 0 {

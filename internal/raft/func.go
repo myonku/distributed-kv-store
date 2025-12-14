@@ -75,6 +75,10 @@ func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, e
 	}
 }
 
+func (n *Node) resetElectionTimeout() {
+
+}
+
 // 返回节点当前状态 snapshot
 func (n *Node) Status() Status {
 	n.mu.Lock()

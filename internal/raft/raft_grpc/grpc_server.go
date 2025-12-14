@@ -5,6 +5,8 @@ import (
 	"distributed-kv-store/internal/raft"
 	"distributed-kv-store/internal/raft/raft_store"
 	"distributed-kv-store/internal/storage"
+
+	"google.golang.org/grpc"
 )
 
 // RaftServiceServer 的实现，内部持有 *Node
@@ -15,6 +17,11 @@ type RaftGRPCServer struct {
 
 func NewRaftGRPCServer(node *raft.Node) *RaftGRPCServer {
 	return &RaftGRPCServer{node: node}
+}
+
+// NewGRPCServerWrapper 生成一个标准 grpc.Server，供外部统一创建。
+func NewGRPCServerWrapper() *grpc.Server {
+	return grpc.NewServer()
 }
 
 // 处理 AppendEntries RPC 调用

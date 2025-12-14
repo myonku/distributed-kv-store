@@ -27,12 +27,18 @@ func main() {
 	}
 
 	// 根据运行模式选择 KVService 实现
-	_, svc, err := buildKVService(appCfg)
+	_, svc, raftNode, err := buildKVService(appCfg) // node 仅在非单机模式下使用
+
 	if err != nil {
 		log.Fatalf("build kv service failed: %v", err)
 	}
 
-	// TODO: 此处组装 gRPC 服务器，注册 Raft RPC 服务等逻辑
+	// 非单机模式下，还需启动 Raft 节点相关的 gRPC 服务
+	if appCfg.Mode == configs.ModeRaft || appCfg.Mode == configs.ModeConsHash {
+		if err := startRaftGRPCServer(appCfg, raftNode); err != nil {
+			return
+		}
+	}
 
 	ctx, cancel := signalContext()
 	defer cancel()
