@@ -6,13 +6,6 @@ import (
 	"distributed-kv-store/internal/storage"
 )
 
-type LogEntryType int
-
-const (
-	EntryNormal LogEntryType = iota
-	EntryConfChange
-)
-
 // 面向 Raft Node 的日志存储接口
 type RaftLogStore interface {
 	Append(entries []LogEntry) error             // 追加日志条目
@@ -27,7 +20,7 @@ type RaftLogStore interface {
 type LogEntry struct {
 	Index uint64                       // 日志索引
 	Term  uint64                       // 任期号
-	Type  LogEntryType                 // 日志类型
+	Type  storage.LogEntryType         // 日志类型
 	Cmd   storage.Command              // Type == EntryNormal 时使用
 	Conf  *configs.ClusterConfigChange // Type == EntryConfChange 时使用
 }
@@ -52,6 +45,8 @@ func (r *raftLogStore) Append(entries []LogEntry) error {
 			Index: e.Index,
 			Term:  e.Term,
 			Cmd:   e.Cmd,
+			Type:  e.Type,
+			Conf:  e.Conf,
 		})
 	}
 	return r.st.AppendRaftLog(context.TODO(), raftEntries)
@@ -68,6 +63,8 @@ func (r *raftLogStore) Entries(from, to uint64) ([]LogEntry, error) {
 			Index: e.Index,
 			Term:  e.Term,
 			Cmd:   e.Cmd,
+			Type:  e.Type,
+			Conf:  e.Conf,
 		})
 	}
 	return res, nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/raft/raft_store"
+	"distributed-kv-store/internal/storage"
 	"maps"
 	"math/rand"
 	"time"
@@ -41,7 +42,15 @@ func (n *Node) runHeartbeatLoop() {
 
 // 处理选举超时的内部逻辑
 func (n *Node) handleElectionTimeout() {
+
 	n.mu.Lock()
+	// 如果近期收到了 leader 心跳/有效 RPC，则本轮超时不触发选举
+	if n.role == Follower && !n.electionResetAt.IsZero() {
+		if time.Since(n.electionResetAt) < n.electionTimeout {
+			n.mu.Unlock()
+			return
+		}
+	}
 
 	if n.role == Leader {
 		n.mu.Unlock()
@@ -76,7 +85,7 @@ func (n *Node) handleElectionTimeout() {
 	}
 
 	// 拷贝 peers 列表供锁外使用
-	peersSnapshot := make(map[string]configs.RaftPeer, len(n.peers))
+	peersSnapshot := make(map[string]configs.ClusterNode, len(n.peers))
 	maps.Copy(peersSnapshot, n.peers)
 	n.mu.Unlock()
 
@@ -173,7 +182,7 @@ func (n *Node) broadcastHeartbeat() {
 	leaderID := n.id
 	leaderCommit := n.commitIndex
 	nextIdxSnapshot := make(map[string]uint64, len(n.nextIndex))
-	peersSnapshot := make(map[string]configs.RaftPeer, len(n.peers))
+	peersSnapshot := make(map[string]configs.ClusterNode, len(n.peers))
 	maps.Copy(nextIdxSnapshot, n.nextIndex)
 	maps.Copy(peersSnapshot, n.peers)
 
@@ -361,11 +370,11 @@ func (n *Node) runApplyLoop() {
 // 内部调用：实际执行 Apply
 func (n *Node) applyEntry(entry raft_store.LogEntry) {
 	switch entry.Type {
-	case raft_store.EntryConfChange:
+	case storage.EntryConfChange:
 		err := n.applyConfChange(entry.Conf)
 		n.notifyApplyResult(entry, err)
 
-	case raft_store.EntryNormal:
+	case storage.EntryNormal:
 		var err error
 		if n.sm != nil {
 			err = n.sm.Apply(entry.Index, entry.Cmd)
@@ -388,7 +397,7 @@ func (n *Node) notifyApplyResult(entry raft_store.LogEntry, err error) {
 
 // 在状态机层面应用一条配置变更日志
 func (n *Node) applyConfChange(cc *configs.ClusterConfigChange) error {
-	if cc == nil {
+	if cc == nil || cc.Scope != configs.ConfChangeScopeCluster {
 		return nil
 	}
 

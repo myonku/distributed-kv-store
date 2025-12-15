@@ -2,7 +2,7 @@
 
 一个学习/实验用的分布式 KV 存储，目前实现了最小可运行的 **单机模式**，后续会扩展为 Raft 主从和一致性哈希分片模式。
 
-## 运行单机模式
+## 模式
 
 当前 `cmd/kvnode` 中的入口以单机方式启动一个 HTTP KV 服务。
 
@@ -48,5 +48,3 @@ curl -X DELETE "http://127.0.0.1:8080/kv?key=foo"
   - `StartHTTPServer`：当前只实现了最简单的 `/kv` 接口，便于快速验证。
 - `cmd/kvnode`：
   - 读取 `settings.toml`，初始化 `Storage` 和 `KVStore`，适配为 `KVService` 并启动 HTTP Server。
-
-未来可以在不改动 HTTP 层的前提下，逐步替换 `KVService` 实现为 Raft 或一致性哈希模式。

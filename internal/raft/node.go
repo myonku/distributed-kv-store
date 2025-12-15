@@ -38,7 +38,7 @@ type Node struct {
 
 	id    string
 	role  Role
-	peers map[string]configs.RaftPeer // 运行时成员视图
+	peers map[string]configs.ClusterNode // 运行时成员视图
 
 	term        uint64
 	votedFor    string
@@ -60,6 +60,7 @@ type Node struct {
 
 	electionTimeout  time.Duration // 选举超时
 	heartbeatTimeout time.Duration // 心跳间隔
+	electionResetAt  time.Time     // 最近一次收到 leader 心跳/有效 RPC 的时间（用于抑制误触发选举）
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -75,7 +76,7 @@ func NewNode(
 ) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	peersMap := make(map[string]configs.RaftPeer, len(cfg.Raft.Nodes))
+	peersMap := make(map[string]configs.ClusterNode, len(cfg.Raft.Nodes))
 	for _, p := range cfg.Raft.Nodes {
 		peersMap[p.ID] = p
 	}
@@ -92,6 +93,7 @@ func NewNode(
 		transport:        transport,
 		electionTimeout:  time.Duration(cfg.Raft.ElectionTimeoutMs),
 		heartbeatTimeout: time.Duration(cfg.Raft.HeartbeatIntervalMs),
+		electionResetAt:  time.Now(),
 		ctx:              ctx,
 		cancel:           cancel,
 	}

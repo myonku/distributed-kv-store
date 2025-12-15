@@ -20,7 +20,7 @@ type GRPCTransport struct {
 }
 
 // 创建 GRPCTransport，连接到所有 peers
-func NewGRPCTransport(peers []configs.RaftPeer) (*GRPCTransport, error) {
+func NewGRPCTransport(peers []configs.ClusterNode) (*GRPCTransport, error) {
 	t := &GRPCTransport{
 		conns: make(map[string]*grpc.ClientConn),
 		cli:   make(map[string]RaftServiceClient),
@@ -113,7 +113,7 @@ func (t *GRPCTransport) SendRequestVote(
 }
 
 // 添加集群节点
-func (t *GRPCTransport) AddPeer(peer configs.RaftPeer) error {
+func (t *GRPCTransport) AddPeer(peer configs.ClusterNode) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if _, exists := t.cli[peer.ID]; exists {

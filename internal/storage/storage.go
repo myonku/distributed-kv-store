@@ -94,8 +94,6 @@ func (m *memoryStorage) LastIndex() uint64 {
 	return uint64(len(m.kvLogs))
 }
 
-// ===== Raft 日志相关实现（示例内存版本） =====
-
 // AppendRaftLog 追加一批 Raft 日志 entries。
 // 要求调用方保证 entries 中的 Index 单调递增且与现有日志连续。
 func (m *memoryStorage) AppendRaftLog(ctx context.Context, entries []RaftLogEntry) error {
@@ -136,10 +134,7 @@ func (m *memoryStorage) RaftLogEntries(ctx context.Context, from, to uint64) ([]
 	}
 
 	start := int(from - 1)
-	end := int(to - 1)
-	if end > len(m.raftLogs) {
-		end = len(m.raftLogs)
-	}
+	end := min(int(to-1), len(m.raftLogs))
 	if start < 0 {
 		start = 0
 	}

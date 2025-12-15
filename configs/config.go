@@ -4,14 +4,20 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// 运行模式：Raft 强一致复制，或基于一致性哈希的去中心化分片
-type Mode string
-
-type ConfChangeType int
+type Mode string            // 运行模式：Raft 强一致复制，或基于一致性哈希的去中心化分片
+type NodeRole string        // 节点角色：控制面节点或数据面节点
+type ConfChangeType int     // 配置变更类型
+type ConfChangeScope string // 配置变更作用域
 
 const (
 	ConfChangeAddNode ConfChangeType = iota
 	ConfChangeRemoveNode
+)
+
+const (
+	NodeRoleUnknown      NodeRole = ""
+	NodeRoleControlPlane NodeRole = "control" // 参与控制面 Raft
+	NodeRoleData         NodeRole = "data"    // 参与数据存储/分片
 )
 
 const (
@@ -20,64 +26,53 @@ const (
 	ModeConsHash   Mode = "chash"
 )
 
-// Raft 集群配置变更
-type ClusterConfigChange struct {
-	Type ConfChangeType
-	Node RaftPeer
-}
+const (
+	ConfChangeScopeCluster ConfChangeScope = "control" // 控制面节点，由 Raft 管理
+	ConfChangeScopeNode    ConfChangeScope = "data"    // CHASH 数据面节点
+)
 
-// 单个节点“自身”的配置（通用）
-type NodeConfig struct {
-	ID          string // 本节点 ID
-	HTTPAddress string // 对外服务地址（HTTP）
-	GRPCAdress  string // Raft 节点间通信地址（gRPC）
-	Storage     StorageConfig
+// 集群配置变更条目
+type ClusterConfigChange struct {
+	Type  ConfChangeType
+	Node  ClusterNode
+	Scope ConfChangeScope
 }
 
 // Raft 模式的集群配置
 type RaftClusterConfig struct {
-	// 集群中所有 Raft 节点
-	Nodes []RaftPeer
-	// 选举超时时间（毫秒）
-	ElectionTimeoutMs int
-	// 心跳间隔时间（毫秒）
-	HeartbeatIntervalMs int
-	// 维护当前Raft Leader ID
-	LeaderID string
-}
-
-type RaftPeer struct {
-	ID          string
-	GRPCAddress string // gRPC 地址
+	Nodes               []ClusterNode // 集群中所有 Raft 节点
+	ElectionTimeoutMs   int           // 选举超时时间（毫秒）
+	HeartbeatIntervalMs int           // 心跳间隔时间（毫秒）
+	LeaderID            string        // 维护当前Raft Leader ID
 }
 
 // 一致性哈希模式的集群配置
 type CHashClusterConfig struct {
-	// Hash ring 上的所有节点
-	Nodes []CHashNode
-	// 虚拟节点数量
-	VirtualNodes int
+	Nodes        []ClusterNode // Hash ring 上的所有节点
+	VirtualNodes int           // 虚拟节点数量
 }
 
-type CHashNode struct {
-	ID      string
-	Address string
-	Weight  int
+// 集群中的一个逻辑节点（物理进程上的一个“服务节点”），不强行区分是 Raft peer 还是 CHash node
+type ClusterNode struct {
+	ID          string   // 既作为物理节点 ID，也作为逻辑节点 ID
+	HTTPAddress string   // 对外 HTTP（物理节点层面使用）
+	GRPCAddress string   // 内部逻辑节点间 Raft / RPC
+	Role        NodeRole // 逻辑节点角色，表明逻辑节点参与的集群类型
+	Weight      int      // 只在一致性哈希模式使用，表示该节点的权重
 }
 
+// 底层存储配置
 type StorageConfig struct {
 	Path string
 }
 
 // 顶层应用配置，初始时由settings.toml加载，运行时动态维护内存实例
 type AppConfig struct {
-	// 当前运行模式
-	Mode Mode
-	// 本节点
-	Self NodeConfig
-	// 按模式划分的集群配置（只会用到一个）
-	Raft  *RaftClusterConfig
-	CHash *CHashClusterConfig
+	Mode    Mode                // 当前运行模式
+	Self    *ClusterNode        // 本节点配置
+	Raft    *RaftClusterConfig  // Raft 集群配置，在主从模式用作复制，在CHASH模式用作控制面
+	CHash   *CHashClusterConfig // 一致性哈希集群配置
+	Storage StorageConfig       // 底层存储配置
 }
 
 // 从 settings.toml 读取初始配置，返回 AppConfig 实例

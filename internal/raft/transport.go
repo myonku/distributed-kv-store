@@ -15,7 +15,7 @@ type Transport interface {
 	// 发送 RequestVote RPC
 	SendRequestVote(ctx context.Context, to string, req *RequestVoteRequest) (*RequestVoteResponse, error)
 	// 添加集群节点
-	AddPeer(peer configs.RaftPeer) error
+	AddPeer(peer configs.ClusterNode) error
 	// 移除集群节点
 	RemovePeer(peerID string) error
 }

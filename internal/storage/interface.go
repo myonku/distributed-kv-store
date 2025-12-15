@@ -1,6 +1,16 @@
 package storage
 
-import "context"
+import (
+	"context"
+	"distributed-kv-store/configs"
+)
+
+type LogEntryType int
+
+const (
+	EntryNormal     LogEntryType = iota // 普通日志条目
+	EntryConfChange                     // 配置变更日志条目
+)
 
 // 表示对底层状态机的一个逻辑操作。
 // 无论是 Raft 日志 entry 还是一致性哈希节点上的本地写入，都可以统一抽象为 Command。
@@ -10,11 +20,13 @@ type Command struct {
 	Value string
 }
 
-// Raft 日志在底层存储中的原始结构（不关心上层 Node 的具体实现）。
+// Raft 日志在底层存储中的原始结构
 type RaftLogEntry struct {
 	Index uint64
 	Term  uint64
 	Cmd   Command
+	Type  LogEntryType                 // 日志类型
+	Conf  *configs.ClusterConfigChange // 可选的集群配置变更
 }
 
 // Raft 硬状态在底层存储中的表示。
@@ -24,9 +36,7 @@ type RaftHardState struct {
 	CommitIndex uint64
 }
 
-// 对底层存储的抽象：
-// - 同时服务于业务 KV（Standalone/状态机）、Raft 日志和 Raft 硬状态；
-// - 具体实现可以通过前缀、分表等方式将不同上层的数据隔离开来。
+// 对底层存储的抽象，同时服务于业务 KV（Standalone/状态机）、Raft 日志和 Raft 硬状态
 type Storage interface {
 	// 业务 KV 日志 + 状态机
 	AppendLog(ctx context.Context, cmd Command) (index uint64, err error) // 添加一条业务日志记录，返回该日志的索引
