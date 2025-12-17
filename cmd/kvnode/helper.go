@@ -30,7 +30,7 @@ func buildKVService(appCfg *configs.AppConfig) (*storage.Storage, services.KVSer
 		}
 		return st, svc, node, nil
 
-	case configs.ModeConsHash:
+	case configs.ModeConsHashGossip:
 		// TODO: 后续在此处组装 CHash Node + CHashKVService
 		st, err := storage.NewStorage(appCfg.Storage)
 		if err != nil {
@@ -50,7 +50,7 @@ func buildRaftMode(appCfg *configs.AppConfig) (*storage.Storage, services.KVServ
 		return nil, nil, nil, err
 	}
 	sm := &raft_store.KVStateMachine{St: st}
-	transport, err := raft_grpc.NewGRPCTransport(appCfg.Raft.Nodes)
+	transport, err := raft_grpc.NewGRPCTransport(appCfg.Membership.Peers)
 	if err != nil {
 		st.Close()
 		return nil, nil, nil, err
@@ -70,7 +70,7 @@ func buildRaftMode(appCfg *configs.AppConfig) (*storage.Storage, services.KVServ
 
 // 启动 Raft gRPC 服务，监听 Self.GRPCAdress
 func startRaftGRPCServer(appCfg *configs.AppConfig, node *raft.Node) error {
-	addr := appCfg.Self.GRPCAddress
+	addr := appCfg.Self.InternalAddress
 	if addr == "" {
 		return fmt.Errorf("grpc address not configured")
 	}

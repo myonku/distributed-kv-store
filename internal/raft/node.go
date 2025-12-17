@@ -76,8 +76,8 @@ func NewNode(
 ) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	peersMap := make(map[string]configs.ClusterNode, len(cfg.Raft.Nodes))
-	for _, p := range cfg.Raft.Nodes {
+	peersMap := make(map[string]configs.ClusterNode, len(cfg.Membership.Peers))
+	for _, p := range cfg.Membership.Peers {
 		peersMap[p.ID] = p
 	}
 

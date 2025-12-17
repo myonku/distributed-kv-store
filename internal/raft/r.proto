@@ -2,14 +2,15 @@ syntax = "proto3";
 
 package raft.v1;
 
-option go_package = "./internal/raft/rpc;raft_grpc";
+option go_package = "./internal/raft/raft_grpc;raft_grpc";
 
 // Raft 日志条目
 message LogEntry {
   uint64 index = 1;
   uint64 term  = 2;
-  // 上层的 store.Command，需要序列化成 bytes
-  bytes  data  = 3;
+  bytes  cmd_data  = 3;  // cmd 的序列化
+  uint32 type  = 4;  // storage.LogEntryType 的值
+  bytes  conf  = 5;  // ClusterConfigChange 的序列化
 }
 
 // AppendEntries RPC 请求

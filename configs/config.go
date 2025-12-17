@@ -4,10 +4,15 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-type Mode string            // 运行模式：Raft 强一致复制，或基于一致性哈希的去中心化分片
-type NodeRole string        // 节点角色：控制面节点或数据面节点
-type ConfChangeType int     // 配置变更类型
-type ConfChangeScope string // 配置变更作用域
+type Mode string        // 运行模式：Raft 强一致复制，或基于一致性哈希的去中心化分片
+type ConfChangeType int // 配置变更类型
+type MembershipType string
+
+const (
+	MembershipStatic MembershipType = "static"
+	MembershipRaft   MembershipType = "raft"
+	MembershipGossip MembershipType = "gossip"
+)
 
 const (
 	ConfChangeAddNode ConfChangeType = iota
@@ -15,64 +20,79 @@ const (
 )
 
 const (
-	NodeRoleUnknown      NodeRole = ""
-	NodeRoleControlPlane NodeRole = "control" // 参与控制面 Raft
-	NodeRoleData         NodeRole = "data"    // 参与数据存储/分片
-)
-
-const (
-	ModeStandalone Mode = "standalone"
-	ModeRaft       Mode = "raft"
-	ModeConsHash   Mode = "chash"
-)
-
-const (
-	ConfChangeScopeCluster ConfChangeScope = "control" // 控制面节点，由 Raft 管理
-	ConfChangeScopeNode    ConfChangeScope = "data"    // CHASH 数据面节点
+	ModeStandalone     Mode = "standalone"
+	ModeRaft           Mode = "raft"
+	ModeConsHashGossip Mode = "chash_gossip"
 )
 
 // 集群配置变更条目
 type ClusterConfigChange struct {
-	Type  ConfChangeType
-	Node  ClusterNode
-	Scope ConfChangeScope
+	Type ConfChangeType
+	Node ClusterNode
 }
 
 // Raft 模式的集群配置
 type RaftClusterConfig struct {
-	Nodes               []ClusterNode // 集群中所有 Raft 节点
-	ElectionTimeoutMs   int           // 选举超时时间（毫秒）
-	HeartbeatIntervalMs int           // 心跳间隔时间（毫秒）
-	LeaderID            string        // 维护当前Raft Leader ID
+	ElectionTimeoutMs   int // 选举超时时间（毫秒）
+	HeartbeatIntervalMs int // 心跳间隔时间（毫秒）
+}
+
+// 集群成员管理配置
+type MembershipConfig struct {
+	Type  MembershipType // 集群协议类型
+	Peers []ClusterNode  // 静态成员列表
+}
+
+// Gossip 协议配置
+type GossipConfig struct {
+	ProbeIntervalMs  int // 探测间隔时间（毫秒）
+	ProbeTimeoutMs   int // 探测超时时间（毫秒）
+	GossipIntervalMs int // Gossip 传播间隔时间（毫秒）
+	Fanout           int // 每轮 Gossip 传播时选择的目标节点数量
+	SuspectTimeoutMs int // 节点被标记为可疑的时间（毫秒）
+	DeadTimeoutMs    int // 节点被标记为死亡的时间（毫秒）
 }
 
 // 一致性哈希模式的集群配置
 type CHashClusterConfig struct {
-	Nodes        []ClusterNode // Hash ring 上的所有节点
-	VirtualNodes int           // 虚拟节点数量
+	VirtualNodes      int // 虚拟节点数量
+	ReplicationFactor int // 副本因子
 }
 
-// 集群中的一个逻辑节点（物理进程上的一个“服务节点”），不强行区分是 Raft peer 还是 CHash node
+// 集群中的一个节点（物理进程上的一个“服务节点”）
 type ClusterNode struct {
-	ID          string   // 既作为物理节点 ID，也作为逻辑节点 ID
-	HTTPAddress string   // 对外 HTTP（物理节点层面使用）
-	GRPCAddress string   // 内部逻辑节点间 Raft / RPC
-	Role        NodeRole // 逻辑节点角色，表明逻辑节点参与的集群类型
-	Weight      int      // 只在一致性哈希模式使用，表示该节点的权重
+	ID              string // 既作为物理节点 ID，也作为逻辑节点 ID
+	ClientAddress   string // 对外 HTTP（物理节点层面使用）
+	InternalAddress string // 内部逻辑节点间通信使用地址（Raft / Gossip）
+	Weight          int    // 只在一致性哈希模式使用，表示环节点的权重
 }
 
-// 底层存储配置
+// 底层存储配置，形式待定
 type StorageConfig struct {
 	Path string
 }
 
+// 日志配置
+type LoggerConfig struct {
+	Enabled    bool   // 是否启用文件日志
+	Dir        string // 日志目录（相对于 settings.toml 所在目录）
+	Extension  string // 文件扩展名："log" 或 "txt" 等
+	Prefix     string // 文件名前缀（可为空）
+	Level      string // 最低日志级别："debug" | "info" | "warn" | "error"
+	Stdout     bool   // 是否同时输出到标准输出
+	TimeFormat string // 时间格式（Go time layout），为空则使用 RFC3339
+}
+
 // 顶层应用配置，初始时由settings.toml加载，运行时动态维护内存实例
 type AppConfig struct {
-	Mode    Mode                // 当前运行模式
-	Self    *ClusterNode        // 本节点配置
-	Raft    *RaftClusterConfig  // Raft 集群配置，在主从模式用作复制，在CHASH模式用作控制面
-	CHash   *CHashClusterConfig // 一致性哈希集群配置
-	Storage StorageConfig       // 底层存储配置
+	Mode         Mode                // 当前运行模式
+	Self         *ClusterNode        // 本节点配置
+	Membership   *MembershipConfig   // 集群成员管理配置
+	Raft         *RaftClusterConfig  // Raft 集群配置
+	CHash        *CHashClusterConfig // 一致性哈希集群配置
+	GossipConfig *GossipConfig       // Gossip 协议配置
+	Storage      StorageConfig       // 底层存储配置
+	Logger       *LoggerConfig       // 日志配置
 }
 
 // 从 settings.toml 读取初始配置，返回 AppConfig 实例

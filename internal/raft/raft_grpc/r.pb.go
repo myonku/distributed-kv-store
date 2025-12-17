@@ -23,11 +23,12 @@ const (
 
 // Raft 日志条目
 type LogEntry struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Index uint64                 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
-	Term  uint64                 `protobuf:"varint,2,opt,name=term,proto3" json:"term,omitempty"`
-	// 上层的 store.Command，需要序列化成 bytes
-	Data          []byte `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Index         uint64                 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	Term          uint64                 `protobuf:"varint,2,opt,name=term,proto3" json:"term,omitempty"`
+	CmdData       []byte                 `protobuf:"bytes,3,opt,name=cmd_data,json=cmdData,proto3" json:"cmd_data,omitempty"` // cmd 的序列化
+	Type          uint32                 `protobuf:"varint,4,opt,name=type,proto3" json:"type,omitempty"`                     // storage.LogEntryType 的值
+	Conf          []byte                 `protobuf:"bytes,5,opt,name=conf,proto3" json:"conf,omitempty"`                      // ClusterConfigChange 的序列化
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -76,9 +77,23 @@ func (x *LogEntry) GetTerm() uint64 {
 	return 0
 }
 
-func (x *LogEntry) GetData() []byte {
+func (x *LogEntry) GetCmdData() []byte {
 	if x != nil {
-		return x.Data
+		return x.CmdData
+	}
+	return nil
+}
+
+func (x *LogEntry) GetType() uint32 {
+	if x != nil {
+		return x.Type
+	}
+	return 0
+}
+
+func (x *LogEntry) GetConf() []byte {
+	if x != nil {
+		return x.Conf
 	}
 	return nil
 }
@@ -355,11 +370,13 @@ var File_internal_raft_r_proto protoreflect.FileDescriptor
 
 const file_internal_raft_r_proto_rawDesc = "" +
 	"\n" +
-	"\x15internal/raft/r.proto\x12\araft.v1\"H\n" +
+	"\x15internal/raft/r.proto\x12\araft.v1\"w\n" +
 	"\bLogEntry\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x04R\x05index\x12\x12\n" +
-	"\x04term\x18\x02 \x01(\x04R\x04term\x12\x12\n" +
-	"\x04data\x18\x03 \x01(\fR\x04data\"\xe3\x01\n" +
+	"\x04term\x18\x02 \x01(\x04R\x04term\x12\x19\n" +
+	"\bcmd_data\x18\x03 \x01(\fR\acmdData\x12\x12\n" +
+	"\x04type\x18\x04 \x01(\rR\x04type\x12\x12\n" +
+	"\x04conf\x18\x05 \x01(\fR\x04conf\"\xe3\x01\n" +
 	"\x14AppendEntriesRequest\x12\x12\n" +
 	"\x04term\x18\x01 \x01(\x04R\x04term\x12\x1b\n" +
 	"\tleader_id\x18\x02 \x01(\tR\bleaderId\x12$\n" +
@@ -381,7 +398,7 @@ const file_internal_raft_r_proto_rawDesc = "" +
 	"\fvote_granted\x18\x02 \x01(\bR\vvoteGranted2\xa7\x01\n" +
 	"\vRaftService\x12N\n" +
 	"\rAppendEntries\x12\x1d.raft.v1.AppendEntriesRequest\x1a\x1e.raft.v1.AppendEntriesResponse\x12H\n" +
-	"\vRequestVote\x12\x1b.raft.v1.RequestVoteRequest\x1a\x1c.raft.v1.RequestVoteResponseB\x1eZ\x1c./internal/raft/rpc;raft_rpcb\x06proto3"
+	"\vRequestVote\x12\x1b.raft.v1.RequestVoteRequest\x1a\x1c.raft.v1.RequestVoteResponseB%Z#./internal/raft/raft_grpc;raft_grpcb\x06proto3"
 
 var (
 	file_internal_raft_r_proto_rawDescOnce sync.Once

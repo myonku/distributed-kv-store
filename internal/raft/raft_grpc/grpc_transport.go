@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // 实现 Transport 接口的 gRPC 传输层
@@ -26,10 +27,10 @@ func NewGRPCTransport(peers []configs.ClusterNode) (*GRPCTransport, error) {
 		cli:   make(map[string]RaftServiceClient),
 	}
 	for _, p := range peers {
-		options := []grpc.DialOption{grpc.WithInsecure()} // TODO: 配置凭证/超时等
-		conn, err := grpc.NewClient(p.GRPCAddress, options...)
+		options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())} // TODO: 配置凭证/超时等
+		conn, err := grpc.Dial(p.InternalAddress, options...)
 		if err != nil {
-			return nil, fmt.Errorf("dial %s: %w", p.GRPCAddress, err)
+			return nil, fmt.Errorf("dial %s: %w", p.InternalAddress, err)
 		}
 		t.conns[p.ID] = conn
 		t.cli[p.ID] = NewRaftServiceClient(conn)
@@ -59,13 +60,27 @@ func (t *GRPCTransport) SendAppendEntries(
 		Entries:      make([]*LogEntry, 0, len(req.Entries)),
 	}
 
+	// 将 raft_store.LogEntry 映射到 proto LogEntry
 	for _, e := range req.Entries {
-		es := req.Entries
-		data, _ := json.Marshal(es)
+		cmdData, err := json.Marshal(e.Cmd)
+		if err != nil {
+			return nil, fmt.Errorf("marshal command: %w", err)
+		}
+
+		var confData []byte
+		if e.Conf != nil {
+			confData, err = json.Marshal(e.Conf)
+			if err != nil {
+				return nil, fmt.Errorf("marshal conf: %w", err)
+			}
+		}
+
 		pbReq.Entries = append(pbReq.Entries, &LogEntry{
-			Index: e.Index,
-			Term:  e.Term,
-			Data:  data,
+			Index:   e.Index,
+			Term:    e.Term,
+			CmdData: cmdData,
+			Type:    uint32(e.Type),
+			Conf:    confData,
 		})
 	}
 
@@ -122,10 +137,10 @@ func (t *GRPCTransport) AddPeer(peer configs.ClusterNode) error {
 		delete(t.conns, peer.ID)
 		delete(t.cli, peer.ID)
 	}
-	options := []grpc.DialOption{grpc.WithInsecure()} // TODO: 配置凭证/超时等
-	conn, err := grpc.NewClient(peer.GRPCAddress, options...)
+	options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())} // TODO: 配置凭证/超时等
+	conn, err := grpc.Dial(peer.InternalAddress, options...)
 	if err != nil {
-		return fmt.Errorf("dial %s: %w", peer.GRPCAddress, err)
+		return fmt.Errorf("dial %s: %w", peer.InternalAddress, err)
 	}
 	t.conns[peer.ID] = conn
 	t.cli[peer.ID] = NewRaftServiceClient(conn)

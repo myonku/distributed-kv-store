@@ -1,4 +1,4 @@
-## 可选 mode: "standalone" | "raft" | "chash"
+## 可选 mode: "standalone" | "raft" | "chash_gossip"
 mode = "raft"
 
 ## 本节点配置
@@ -13,29 +13,12 @@ weight = 1          # 只在 chash 模式有意义
 [storage]
 path = "./data/node1"
 
-## Raft 模式集群配置
-[raft]
-election_timeout_ms = 150
-heartbeat_interval_ms = 50
-leader_id = ""  # 可留空；运行时由选举产生
-
-[[raft.nodes]]
-id = "node1"
-http_address = "127.0.0.1:8080"
-grpc_address = "127.0.0.1:9000"
-role = "control"
-weight = 1
-
-[[raft.nodes]]
-id = "node2"
-http_address = "127.0.0.1:8081"
-grpc_address = "127.0.0.1:9001"
-role = "control"
-weight = 1
-
-[[raft.nodes]]
-id = "node3"
-http_address = "127.0.0.1:8082"
-grpc_address = "127.0.0.1:9002"
-role = "control"
-weight = 1
+## 日志配置（可选）
+[logger]
+enabled = true
+dir = "logs"          # 相对于 settings.toml 所在目录
+extension = "log"     # "log" 或 "txt"
+prefix = "kvnode"     # 文件前缀；为空则文件名为 YYYY-MM-DD.log
+level = "info"        # debug | info | warn | error
+stdout = true          # 同时输出到控制台
+time_format = ""      # Go time layout，留空使用 RFC3339

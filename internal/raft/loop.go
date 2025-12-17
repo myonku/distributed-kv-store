@@ -397,9 +397,6 @@ func (n *Node) notifyApplyResult(entry raft_store.LogEntry, err error) {
 
 // 在状态机层面应用一条配置变更日志
 func (n *Node) applyConfChange(cc *configs.ClusterConfigChange) error {
-	if cc == nil || cc.Scope != configs.ConfChangeScopeCluster {
-		return nil
-	}
 
 	n.mu.Lock()
 	defer n.mu.Unlock()

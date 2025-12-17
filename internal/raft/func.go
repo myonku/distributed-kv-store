@@ -79,10 +79,7 @@ func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, e
 
 // 用于上层或控制面在 Leader 上发起配置变更
 func (n *Node) ProposeConfChange(ctx context.Context, cc configs.ClusterConfigChange) (ApplyResult, error) {
-	// 检查配置变更合法性
-	if cc.Scope != configs.ConfChangeScopeCluster {
-		return ApplyResult{}, errors.ErrInvalidConfChange
-	}
+
 	// 只能在当前 Leader 上发起配置变更
 	if !n.IsLeader() {
 		return ApplyResult{}, errors.ErrNotLeader

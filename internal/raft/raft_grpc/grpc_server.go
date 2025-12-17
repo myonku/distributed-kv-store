@@ -2,9 +2,13 @@ package raft_grpc
 
 import (
 	context "context"
+	"distributed-kv-store/configs"
+	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft"
 	"distributed-kv-store/internal/raft/raft_store"
 	"distributed-kv-store/internal/storage"
+	"encoding/json"
+	"fmt"
 
 	"google.golang.org/grpc"
 )
@@ -37,12 +41,38 @@ func (s *RaftGRPCServer) AppendEntries(ctx context.Context, req *AppendEntriesRe
 	}
 
 	for _, e := range req.Entries {
-		var cmd storage.Command
-		internalReq.Entries = append(internalReq.Entries, raft_store.LogEntry{
+		entryType := storage.LogEntryType(e.Type)
+		internalEntry := raft_store.LogEntry{
 			Index: e.Index,
 			Term:  e.Term,
-			Cmd:   cmd,
-		})
+			Type:  entryType,
+		}
+
+		switch entryType {
+		case storage.EntryNormal:
+			if len(e.CmdData) > 0 {
+				var cmd storage.Command
+				if err := json.Unmarshal(e.CmdData, &cmd); err != nil {
+					return nil, fmt.Errorf("unmarshal command: %w", err)
+				}
+				internalEntry.Cmd = cmd
+			}
+
+		case storage.EntryConfChange:
+			if len(e.Conf) == 0 {
+				return nil, fmt.Errorf("missing conf for conf-change entry (index=%d)", e.Index)
+			}
+			var cc configs.ClusterConfigChange
+			if err := json.Unmarshal(e.Conf, &cc); err != nil {
+				return nil, fmt.Errorf("unmarshal conf change: %w", err)
+			}
+			internalEntry.Conf = &cc
+
+		default:
+			return nil, errors.ErrUnkownEntryType
+		}
+
+		internalReq.Entries = append(internalReq.Entries, internalEntry)
 	}
 
 	// 调用 Node 的 HandleAppendEntries
@@ -59,6 +89,7 @@ func (s *RaftGRPCServer) AppendEntries(ctx context.Context, req *AppendEntriesRe
 	}, nil
 }
 
+// 处理 RequestVote RPC 调用
 func (s *RaftGRPCServer) RequestVote(ctx context.Context, req *RequestVoteRequest) (*RequestVoteResponse, error) {
 	internalReq := &raft.RequestVoteRequest{
 		Term:         req.Term,
