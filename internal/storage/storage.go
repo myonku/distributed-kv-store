@@ -63,10 +63,11 @@ func (m *memoryStorage) ApplyLog(ctx context.Context, index uint64) error {
 	}
 
 	switch cmd.Op {
-	case "set":
+	case OpPut:
 		m.data[cmd.Key] = cmd.Value
-	case "delete":
+	case OpDelete:
 		delete(m.data, cmd.Key)
+	case OpNoop:
 	}
 	return nil
 }

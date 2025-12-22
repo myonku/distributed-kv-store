@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-// 定义一致性哈希环的抽象接口
+// 一致性哈希环接口
 type Ring interface {
 	AddNode(node Node)
 	RemoveNode(nodeID string)
@@ -28,7 +28,6 @@ func NewHashRing(virtualNodes int) *HashRing {
 }
 
 func (r *HashRing) GetNode(key string) (node Node, ok bool) {
-	defer r.mu.RUnlock()
 	return Node{}, false
 }
 func (r *HashRing) AddNode(node Node) {

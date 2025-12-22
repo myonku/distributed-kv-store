@@ -16,7 +16,7 @@ func NewStandaloneKVService(st storage.Storage) KVService {
 
 func (s *StandaloneKVService) Put(ctx context.Context, key, value string) error {
 	cmd := storage.Command{
-		Op:    "put",
+		Op:    storage.OpPut,
 		Key:   key,
 		Value: value,
 	}
@@ -30,7 +30,7 @@ func (s *StandaloneKVService) Get(ctx context.Context, key string) (string, erro
 
 func (s *StandaloneKVService) Delete(ctx context.Context, key string) error {
 	cmd := storage.Command{
-		Op:  "delete",
+		Op:  storage.OpDelete,
 		Key: key,
 	}
 	_, err := s.st.AppendLog(ctx, cmd)

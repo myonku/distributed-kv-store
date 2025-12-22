@@ -2,7 +2,7 @@ package chash
 
 import "context"
 
-// RemoteClient 抽象“访问其他节点 KV 服务”的能力
+// 为 CHASH 节点定义远程客户端接口
 type RemoteClient interface {
 	Put(ctx context.Context, nodeID, key, value string) error
 	Get(ctx context.Context, nodeID, key string) (string, error)

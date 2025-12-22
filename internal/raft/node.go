@@ -16,10 +16,17 @@ const (
 	Candidate
 )
 
+// 提交结果
 type ApplyResult struct {
 	Index uint64
 	Term  uint64
 	Err   error
+}
+
+// 心跳结果
+type HeartbeatResult struct {
+	Term    uint64
+	Success bool
 }
 
 // 供上层查询的节点状态快照

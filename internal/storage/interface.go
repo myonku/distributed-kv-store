@@ -6,16 +6,23 @@ import (
 )
 
 type LogEntryType int
+type CommandOpration string
 
 const (
 	EntryNormal     LogEntryType = iota // 普通日志条目
 	EntryConfChange                     // 配置变更日志条目
 )
 
+const (
+	OpPut    CommandOpration = "put"    // 设置键值对
+	OpDelete CommandOpration = "delete" // 删除键值对
+	OpNoop   CommandOpration = "noop"   // 空操作：用于 Raft barrier/一致性读
+)
+
 // 表示对底层状态机的一个逻辑操作。
 // 无论是 Raft 日志 entry 还是一致性哈希节点上的本地写入，都可以统一抽象为 Command。
 type Command struct {
-	Op    string
+	Op    CommandOpration
 	Key   string
 	Value string
 }

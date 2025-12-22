@@ -339,7 +339,6 @@ func (n *Node) runApplyLoop() {
 		n.mu.Lock()
 		if n.commitIndex > n.lastApplied {
 			idx = n.lastApplied + 1 // 日志索引从 1 开始
-			n.lastApplied = idx
 			ok = true
 		}
 		n.mu.Unlock()
@@ -364,6 +363,13 @@ func (n *Node) runApplyLoop() {
 		}
 
 		n.applyEntry(entry)
+
+		// 标记该条目已真正完成 Apply
+		n.mu.Lock()
+		if n.lastApplied < idx {
+			n.lastApplied = idx
+		}
+		n.mu.Unlock()
 	}
 }
 
