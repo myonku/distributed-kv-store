@@ -424,6 +424,7 @@ func (n *Node) applyConfChange(cc *configs.ClusterConfigChange) error {
 			n.matchIndex[cc.Node.ID] = 0
 		}
 
+		// 通知 transport 层添加连接
 		err := n.transport.AddPeer(cc.Node)
 		if err != nil {
 			return err
@@ -437,6 +438,7 @@ func (n *Node) applyConfChange(cc *configs.ClusterConfigChange) error {
 		delete(n.nextIndex, cc.Node.ID)
 		delete(n.matchIndex, cc.Node.ID)
 
+		// 通知 transport 层移除连接
 		err := n.transport.RemovePeer(cc.Node.ID)
 		if err != nil {
 			return err

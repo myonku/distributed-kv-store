@@ -14,9 +14,9 @@ type Transport interface {
 	SendAppendEntries(ctx context.Context, to string, req *AppendEntriesRequest) (*AppendEntriesResponse, error)
 	// 发送 RequestVote RPC
 	SendRequestVote(ctx context.Context, to string, req *RequestVoteRequest) (*RequestVoteResponse, error)
-	// 添加集群节点
+	// 添加新的集群节点连接（本地）
 	AddPeer(peer configs.ClusterNode) error
-	// 移除集群节点
+	// 移除某个集群节点的连接（本地）
 	RemovePeer(peerID string) error
 }
 

@@ -1,15 +1,9 @@
 package chash
 
 import (
+	"distributed-kv-store/configs"
 	"sync"
 )
-
-// 一致性哈希环接口
-type Ring interface {
-	AddNode(node Node)
-	RemoveNode(nodeID string)
-	GetNode(key string) (nodeID string, ok bool)
-}
 
 // 基于虚拟节点的简单一致性哈希实现
 type HashRing struct {
@@ -20,19 +14,19 @@ type HashRing struct {
 	VitrualNodesMap map[string]string // 虚拟节点到物理节点的映射
 }
 
-func NewHashRing(virtualNodes int) *HashRing {
-	return &HashRing{
-		VirtualNodes:    virtualNodes,
+func NewHashRing(cfg *configs.AppConfig) *HashRing {
+	ring := &HashRing{
+		VirtualNodes:    cfg.CHash.VirtualNodes,
 		VitrualNodesMap: make(map[string]string),
 	}
-}
-
-func (r *HashRing) GetNode(key string) (node Node, ok bool) {
-	return Node{}, false
-}
-func (r *HashRing) AddNode(node Node) {
-
-}
-func (r *HashRing) RemoveNode(nodeID string) {
-
+	// 根据配置添加初始节点
+	for _, member := range cfg.Membership.Peers {
+		node := Node{
+			ID:      member.ID,
+			Address: member.ClientAddress,
+			Weight:  member.Weight,
+		}
+		ring.AddNode(node)
+	}
+	return ring
 }

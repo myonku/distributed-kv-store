@@ -28,9 +28,9 @@ func NewGRPCTransport(peers []configs.ClusterNode) (*GRPCTransport, error) {
 	}
 	for _, p := range peers {
 		options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())} // TODO: 配置凭证/超时等
-		conn, err := grpc.Dial(p.InternalAddress, options...)
+		conn, err := grpc.Dial(p.RaftGRPCAddress, options...)
 		if err != nil {
-			return nil, fmt.Errorf("dial %s: %w", p.InternalAddress, err)
+			return nil, fmt.Errorf("dial %s: %w", p.RaftGRPCAddress, err)
 		}
 		t.conns[p.ID] = conn
 		t.cli[p.ID] = NewRaftServiceClient(conn)
@@ -137,10 +137,10 @@ func (t *GRPCTransport) AddPeer(peer configs.ClusterNode) error {
 		delete(t.conns, peer.ID)
 		delete(t.cli, peer.ID)
 	}
-	options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())} // TODO: 配置凭证/超时等
-	conn, err := grpc.Dial(peer.InternalAddress, options...)
+	options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	conn, err := grpc.NewClient(peer.RaftGRPCAddress, options...)
 	if err != nil {
-		return fmt.Errorf("dial %s: %w", peer.InternalAddress, err)
+		return fmt.Errorf("dial %s: %w", peer.RaftGRPCAddress, err)
 	}
 	t.conns[peer.ID] = conn
 	t.cli[peer.ID] = NewRaftServiceClient(conn)

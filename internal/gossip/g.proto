@@ -1,15 +1,55 @@
+syntax = "proto3";
 
-message PingRequest { string from_id=1; uint64 from_incarnation=2; }
-message PingResponse { bool ok=1; }
+package gossip.v1;
 
-message Digest { string id=1; uint64 incarnation=2; uint32 state=3; }
+option go_package = "./internal/gossip/gossip_grpc;gossip_grpc";
+
+enum NodeState {
+	NODE_STATE_ALIVE = 0;
+	NODE_STATE_SUSPECT = 1;
+	NODE_STATE_DEAD = 2;
+}
+
+message Digest {
+	string id = 1;
+	uint64 incarnation = 2;
+	NodeState state = 3;
+}
+
+message Member {
+	string id = 1;
+	string internal_address = 2;
+	string client_address = 3;
+	int32 weight = 4;
+
+	NodeState state = 5;
+	uint64 incarnation = 6;
+	int64 state_updated = 7;
+}
+
+message PingRequest {
+	string from_id = 1;
+	uint64 from_incarnation = 2;
+}
+
+message PingResponse {
+	bool ok = 1;
+}
 
 message PushPullRequest {
-  string from_id=1;
-  repeated Digest digests=2;
-  repeated Member full_members=3;
+	string from_id = 1;
+	repeated Digest digests = 2;
+	repeated Member full_members = 3;
 }
 
 message PushPullResponse {
-  repeated Member delta=1;
+	repeated Member delta = 1;
 }
+
+service GossipService {
+	rpc Ping(PingRequest) returns (PingResponse);
+	rpc PushPull(PushPullRequest) returns (PushPullResponse);
+}
+
+
+

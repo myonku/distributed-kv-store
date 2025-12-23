@@ -61,11 +61,12 @@ type CHashClusterConfig struct {
 
 // 集群中的一个节点（物理进程上的一个“服务节点”）
 type ClusterNode struct {
-	ID              string // 既作为物理节点 ID，也作为逻辑节点 ID
-	ClientAddress   string // 对外 HTTP（物理节点层面使用）
-	InternalAddress string // Raft GRPC 或 CHASH RemoteClient 使用地址
-	GossipAddress   string // Gossip 协议使用地址
-	Weight          int    // 只在一致性哈希模式使用，表示环节点的权重
+	ID                string // 既作为物理节点 ID，也作为逻辑节点 ID
+	ClientAddress     string // 对外 HTTP（物理节点层面使用）
+	RaftGRPCAddress   string // Raft GRPC 通信地址
+	CHashGRPCAddress  string // 一致性哈希节点间通信地址
+	GossipGRPCAddress string // Gossip 协议节点间通信地址
+	Weight            int    // 只在一致性哈希模式使用，表示环节点的权重
 }
 
 // 底层存储配置，形式待定

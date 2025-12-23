@@ -70,7 +70,7 @@ func buildRaftMode(appCfg *configs.AppConfig) (*storage.Storage, services.KVServ
 
 // 启动 Raft gRPC 服务，监听 Self.GRPCAdress
 func startRaftGRPCServer(appCfg *configs.AppConfig, node *raft.Node) error {
-	addr := appCfg.Self.InternalAddress
+	addr := appCfg.Self.RaftGRPCAddress
 	if addr == "" {
 		return fmt.Errorf("grpc address not configured")
 	}

@@ -48,7 +48,7 @@ type Node struct {
 func NewNode(cfg *configs.AppConfig, transport Transport) *Node {
 	menber := Member{
 		ID:              cfg.Self.ID,
-		InternalAddress: cfg.Self.InternalAddress,
+		InternalAddress: cfg.Self.GossipGRPCAddress,
 		ClientAddress:   cfg.Self.ClientAddress,
 		Weight:          cfg.Self.Weight,
 		State:           StateAlive,
@@ -73,17 +73,5 @@ func (n *Node) Start() {
 
 }
 func (n *Node) Stop() {
-
-}
-
-// Join 用于启动时引导（seed 节点列表来自配置）
-func (n *Node) Join(seeds []configs.ClusterNode) error {
-	return nil
-}
-
-func (n *Node) Snapshot() []Member {
-	return nil
-}
-func (n *Node) Events() <-chan Event {
-	return n.events
+	n.cancel()
 }
