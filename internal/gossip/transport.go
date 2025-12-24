@@ -59,10 +59,11 @@ func (n *Node) HandlePing(ctx context.Context, req *PingRequest) (*PingResponse,
 	now := time.Now().UnixNano()
 	member, ok := n.members[fromID]
 	if !ok {
-		// TODO: 新成员加入策略（是否允许通过 Ping 自动引入成员）
-		m := &Member{ID: fromID, State: StateAlive, Incarnation: req.FromIncarnation, StateUpdated: now}
-		n.members[fromID] = m
-		// TODO: n.emitEventIfChanged(ctx, *m, StateDead)
+		// 不允许通过 Ping 自动引入成员，忽略该请求
+		// 后续可能更新 Ping 消息内容支持引入新成员
+		// m := &Member{ID: fromID, State: StateAlive, Incarnation: req.FromIncarnation, StateUpdated: now}
+		// n.members[fromID] = m
+		// n.emitEventIfChanged(ctx, *m, StateDead)
 		return &PingResponse{OK: true}, nil
 	}
 
@@ -73,25 +74,22 @@ func (n *Node) HandlePing(ctx context.Context, req *PingRequest) (*PingResponse,
 		member.State = StateAlive
 		member.StateUpdated = now
 	} else {
-		// TODO: 如果本地已标记 Suspect/Dead，收到 Ping 是否立即恢复 Alive（需结合 incarnation/间接探测等）
+		// 更新存活时间
 		member.StateUpdated = now
+		// 保证状态为存活
 		if member.State != StateAlive {
 			member.State = StateAlive
 		}
 	}
 
-	// TODO: 成员状态变化时触发事件
-	_ = oldState
+	n.emitEventIfChanged(ctx, *member, oldState)
+
 	return &PingResponse{OK: true}, nil
 }
 
 // 处理来自其他节点的 PushPull（由 RPC 层调用）
 func (n *Node) HandlePushPull(ctx context.Context, req *PushPullRequest) (*PushPullResponse, error) {
-	// 大致流程（占位）：
-	// 1) 校验请求
-	// 2) 合并对端的 FullMembers 到本地视图（按 incarnation/stateUpdated/State 做冲突解决）
-	// 3) 基于对端 Digests 计算需要回传的 Delta（本地比对端“更新”的成员集合）
-	// 4) 返回 Delta
+
 	if req == nil {
 		return &PushPullResponse{Delta: []Member{}}, nil
 	}
@@ -128,12 +126,11 @@ func (n *Node) HandlePushPull(ctx context.Context, req *PushPullRequest) (*PushP
 			if local.StateUpdated == 0 {
 				local.StateUpdated = now
 			}
-			// TODO: n.emitEventIfChanged(ctx, *local, oldState)
-			_ = oldState
+			n.emitEventIfChanged(ctx, *local, oldState)
 		}
 	}
 
-	// 3) 基于 Digests 计算 Delta
+	// 基于 Digests 计算 Delta
 	remote := make(map[string]Digest, len(req.Digests))
 	for _, d := range req.Digests {
 		if d.ID == "" {
@@ -144,7 +141,7 @@ func (n *Node) HandlePushPull(ctx context.Context, req *PushPullRequest) (*PushP
 
 	delta := make([]Member, 0)
 	for id, local := range n.members {
-		// TODO: 视情况决定是否包含 self
+		// 忽略自身信息
 		if n.self != nil && id == n.self.ID {
 			continue
 		}
@@ -160,7 +157,11 @@ func (n *Node) HandlePushPull(ctx context.Context, req *PushPullRequest) (*PushP
 			delta = append(delta, *local)
 			continue
 		}
-		// TODO: 如果 incarnation 相同但 state 更“严重”(Dead > Suspect > Alive) 是否回传，取决于冲突规则
+		// 如果 incarnation 相同但 state 为更旧，回传
+		if local.Incarnation == rd.Incarnation && local.State > rd.State {
+			delta = append(delta, *local)
+			continue
+		}
 	}
 
 	return &PushPullResponse{Delta: delta}, nil

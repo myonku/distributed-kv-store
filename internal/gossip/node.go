@@ -47,31 +47,42 @@ type Node struct {
 // 创建新的 Gossip 节点实例
 func NewNode(cfg *configs.AppConfig, transport Transport) *Node {
 	menber := Member{
-		ID:              cfg.Self.ID,
-		InternalAddress: cfg.Self.GossipGRPCAddress,
-		ClientAddress:   cfg.Self.ClientAddress,
-		Weight:          cfg.Self.Weight,
-		State:           StateAlive,
-		Incarnation:     1,
-		StateUpdated:    time.Now().UnixNano(),
+		ID:                cfg.Self.ID,
+		GossipGRPCAddress: cfg.Self.GossipGRPCAddress,
+		ClientAddress:     cfg.Self.ClientAddress,
+		Weight:            cfg.Self.Weight,
+		State:             StateAlive,
+		Incarnation:       1,
+		StateUpdated:      time.Now().UnixNano(),
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Node{
 		self:           &menber,
 		members:        make(map[string]*Member),
-		probeInterval:  time.Duration(cfg.GossipConfig.ProbeIntervalMs),
-		probeTimeout:   time.Duration(cfg.GossipConfig.ProbeTimeoutMs),
-		gossipInterval: time.Duration(cfg.GossipConfig.GossipIntervalMs),
+		probeInterval:  time.Duration(cfg.GossipConfig.ProbeIntervalMs) * time.Millisecond,
+		probeTimeout:   time.Duration(cfg.GossipConfig.ProbeTimeoutMs) * time.Millisecond,
+		gossipInterval: time.Duration(cfg.GossipConfig.GossipIntervalMs) * time.Millisecond,
 		fanout:         cfg.GossipConfig.Fanout,
-		suspectTimeout: time.Duration(cfg.GossipConfig.SuspectTimeoutMs),
-		deadTimeout:    time.Duration(cfg.GossipConfig.DeadTimeoutMs),
+		suspectTimeout: time.Duration(cfg.GossipConfig.SuspectTimeoutMs) * time.Millisecond,
+		deadTimeout:    time.Duration(cfg.GossipConfig.DeadTimeoutMs) * time.Millisecond,
 		transport:      transport,
 		events:         make(chan Event, 100),
+		ctx:            ctx,
+		cancel:         cancel,
 	}
 }
 
 func (n *Node) Start() {
-
+	// TODO: 初始化节点内部状态，如引导同步等
+	// 启动后台任务
+	go n.probeLoop()
+	go n.gossipLoop()
+	go n.reapLoop()
 }
+
 func (n *Node) Stop() {
+	if n == nil || n.cancel == nil {
+		return
+	}
 	n.cancel()
 }

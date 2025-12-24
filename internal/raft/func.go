@@ -12,6 +12,11 @@ import (
 
 // 在 Leader 上执行一次线性一致读屏障
 func (n *Node) LinearizableRead(ctx context.Context) error {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	if !n.IsLeader() {
 		return errors.ErrNotLeader
 	}
@@ -36,6 +41,11 @@ func (n *Node) LinearizableRead(ctx context.Context) error {
 
 // 上层写请求的统一入口（只在 Leader 上成功）
 func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, error) {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	if !n.IsLeader() {
 		return ApplyResult{}, errors.ErrNotLeader
 	}
@@ -81,6 +91,10 @@ func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, e
 
 // 用于上层或控制面在 Leader 上发起配置变更
 func (n *Node) ProposeConfChange(ctx context.Context, cc configs.ClusterConfigChange) (ApplyResult, error) {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	if !n.IsLeader() {
 		return ApplyResult{}, errors.ErrNotLeader
@@ -135,6 +149,11 @@ func (n *Node) resetElectionTimeout() {
 
 // 确保当前任期至少有一条已提交日志（必要时提交 noop）
 func (n *Node) ensureCommittedInCurrentTerm(ctx context.Context) error {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	n.mu.RLock()
 	if n.role != Leader {
 		n.mu.RUnlock()
@@ -158,6 +177,11 @@ func (n *Node) ensureCommittedInCurrentTerm(ctx context.Context) error {
 
 // 在多数派节点上执行一次心跳
 func (n *Node) quorumHeartbeat(ctx context.Context) error {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	n.mu.RLock()
 	if n.role != Leader {
 		n.mu.RUnlock()
@@ -245,6 +269,11 @@ func (n *Node) quorumHeartbeat(ctx context.Context) error {
 
 // 等待状态机应用到指定的日志索引，同时确保仍为当前任期的 Leader
 func (n *Node) waitAppliedTo(ctx context.Context, term uint64, index uint64) error {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 

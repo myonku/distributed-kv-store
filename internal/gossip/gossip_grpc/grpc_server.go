@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// GossipServiceServer 的实现，内部持有 *gossip.Node。成员合并/冲突解决策略放在 gossip 包内实现
+// GossipServiceServer 的实现，内部持有 *gossip.Node
 type GossipGRPCServer struct {
 	UnimplementedGossipServiceServer
 	node *gossip.Node
@@ -57,13 +57,13 @@ func (s *GossipGRPCServer) PushPull(ctx context.Context, req *PushPullRequest) (
 		internalReq.FullMembers = make([]gossip.Member, 0, len(req.FullMembers))
 		for _, m := range req.FullMembers {
 			internalReq.FullMembers = append(internalReq.FullMembers, gossip.Member{
-				ID:              m.Id,
-				InternalAddress: m.InternalAddress,
-				ClientAddress:   m.ClientAddress,
-				Weight:          int(m.Weight),
-				State:           fromPBState(m.State),
-				Incarnation:     m.Incarnation,
-				StateUpdated:    m.StateUpdated,
+				ID:                m.Id,
+				GossipGRPCAddress: m.GossipGrpcAddress,
+				ClientAddress:     m.ClientAddress,
+				Weight:            int(m.Weight),
+				State:             fromPBState(m.State),
+				Incarnation:       m.Incarnation,
+				StateUpdated:      m.StateUpdated,
 			})
 		}
 	}
@@ -78,13 +78,13 @@ func (s *GossipGRPCServer) PushPull(ctx context.Context, req *PushPullRequest) (
 		pbResp.Delta = make([]*Member, 0, len(resp.Delta))
 		for _, m := range resp.Delta {
 			pbResp.Delta = append(pbResp.Delta, &Member{
-				Id:              m.ID,
-				InternalAddress: m.InternalAddress,
-				ClientAddress:   m.ClientAddress,
-				Weight:          int32(m.Weight),
-				State:           toPBState(m.State),
-				Incarnation:     m.Incarnation,
-				StateUpdated:    m.StateUpdated,
+				Id:                m.ID,
+				GossipGrpcAddress: m.GossipGRPCAddress,
+				ClientAddress:     m.ClientAddress,
+				Weight:            int32(m.Weight),
+				State:             toPBState(m.State),
+				Incarnation:       m.Incarnation,
+				StateUpdated:      m.StateUpdated,
 			})
 		}
 	}

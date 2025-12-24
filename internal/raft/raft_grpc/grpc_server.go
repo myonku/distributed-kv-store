@@ -1,7 +1,7 @@
 package raft_grpc
 
 import (
-	context "context"
+	"context"
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft"

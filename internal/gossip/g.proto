@@ -18,7 +18,7 @@ message Digest {
 
 message Member {
 	string id = 1;
-	string internal_address = 2;
+	string gossip_grpc_address = 2;
 	string client_address = 3;
 	int32 weight = 4;
 

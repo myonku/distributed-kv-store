@@ -91,13 +91,13 @@ func (t *GRPCTransport) PushPull(
 		pbReq.FullMembers = make([]*Member, 0, len(req.FullMembers))
 		for _, m := range req.FullMembers {
 			pbReq.FullMembers = append(pbReq.FullMembers, &Member{
-				Id:              m.ID,
-				InternalAddress: m.InternalAddress,
-				ClientAddress:   m.ClientAddress,
-				Weight:          int32(m.Weight),
-				State:           toPBState(m.State),
-				Incarnation:     m.Incarnation,
-				StateUpdated:    m.StateUpdated,
+				Id:                m.ID,
+				GossipGrpcAddress: m.GossipGRPCAddress,
+				ClientAddress:     m.ClientAddress,
+				Weight:            int32(m.Weight),
+				State:             toPBState(m.State),
+				Incarnation:       m.Incarnation,
+				StateUpdated:      m.StateUpdated,
 			})
 		}
 	}
@@ -112,13 +112,13 @@ func (t *GRPCTransport) PushPull(
 		resp.Delta = make([]gossip.Member, 0, len(pbResp.Delta))
 		for _, m := range pbResp.Delta {
 			resp.Delta = append(resp.Delta, gossip.Member{
-				ID:              m.Id,
-				InternalAddress: m.InternalAddress,
-				ClientAddress:   m.ClientAddress,
-				Weight:          int(m.Weight),
-				State:           fromPBState(m.State),
-				Incarnation:     m.Incarnation,
-				StateUpdated:    m.StateUpdated,
+				ID:                m.Id,
+				GossipGRPCAddress: m.GossipGrpcAddress,
+				ClientAddress:     m.ClientAddress,
+				Weight:            int(m.Weight),
+				State:             fromPBState(m.State),
+				Incarnation:       m.Incarnation,
+				StateUpdated:      m.StateUpdated,
 			})
 		}
 	}

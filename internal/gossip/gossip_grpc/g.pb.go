@@ -131,16 +131,16 @@ func (x *Digest) GetState() NodeState {
 }
 
 type Member struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	InternalAddress string                 `protobuf:"bytes,2,opt,name=internal_address,json=internalAddress,proto3" json:"internal_address,omitempty"`
-	ClientAddress   string                 `protobuf:"bytes,3,opt,name=client_address,json=clientAddress,proto3" json:"client_address,omitempty"`
-	Weight          int32                  `protobuf:"varint,4,opt,name=weight,proto3" json:"weight,omitempty"`
-	State           NodeState              `protobuf:"varint,5,opt,name=state,proto3,enum=gossip.v1.NodeState" json:"state,omitempty"`
-	Incarnation     uint64                 `protobuf:"varint,6,opt,name=incarnation,proto3" json:"incarnation,omitempty"`
-	StateUpdated    int64                  `protobuf:"varint,7,opt,name=state_updated,json=stateUpdated,proto3" json:"state_updated,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	GossipGrpcAddress string                 `protobuf:"bytes,2,opt,name=gossip_grpc_address,json=gossipGrpcAddress,proto3" json:"gossip_grpc_address,omitempty"`
+	ClientAddress     string                 `protobuf:"bytes,3,opt,name=client_address,json=clientAddress,proto3" json:"client_address,omitempty"`
+	Weight            int32                  `protobuf:"varint,4,opt,name=weight,proto3" json:"weight,omitempty"`
+	State             NodeState              `protobuf:"varint,5,opt,name=state,proto3,enum=gossip.v1.NodeState" json:"state,omitempty"`
+	Incarnation       uint64                 `protobuf:"varint,6,opt,name=incarnation,proto3" json:"incarnation,omitempty"`
+	StateUpdated      int64                  `protobuf:"varint,7,opt,name=state_updated,json=stateUpdated,proto3" json:"state_updated,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Member) Reset() {
@@ -180,9 +180,9 @@ func (x *Member) GetId() string {
 	return ""
 }
 
-func (x *Member) GetInternalAddress() string {
+func (x *Member) GetGossipGrpcAddress() string {
 	if x != nil {
-		return x.InternalAddress
+		return x.GossipGrpcAddress
 	}
 	return ""
 }
@@ -430,10 +430,10 @@ const file_internal_gossip_g_proto_rawDesc = "" +
 	"\x06Digest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
 	"\vincarnation\x18\x02 \x01(\x04R\vincarnation\x12*\n" +
-	"\x05state\x18\x03 \x01(\x0e2\x14.gossip.v1.NodeStateR\x05state\"\xf5\x01\n" +
+	"\x05state\x18\x03 \x01(\x0e2\x14.gossip.v1.NodeStateR\x05state\"\xfa\x01\n" +
 	"\x06Member\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
-	"\x10internal_address\x18\x02 \x01(\tR\x0finternalAddress\x12%\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
+	"\x13gossip_grpc_address\x18\x02 \x01(\tR\x11gossipGrpcAddress\x12%\n" +
 	"\x0eclient_address\x18\x03 \x01(\tR\rclientAddress\x12\x16\n" +
 	"\x06weight\x18\x04 \x01(\x05R\x06weight\x12*\n" +
 	"\x05state\x18\x05 \x01(\x0e2\x14.gossip.v1.NodeStateR\x05state\x12 \n" +

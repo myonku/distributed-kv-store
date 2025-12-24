@@ -118,5 +118,8 @@ func (n *Node) Start() {
 
 // 停止节点
 func (n *Node) Stop() {
+	if n == nil || n.cancel == nil {
+		return
+	}
 	n.cancel()
 }

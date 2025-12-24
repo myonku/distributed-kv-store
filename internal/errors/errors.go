@@ -12,4 +12,6 @@ var (
 	ErrInvalidConfChange   = err.New("invalid configuration change") // 无效的配置变更
 	ErrUnkownEntryType     = err.New("unknown entry type")           // 未知的日志条目类型
 	ErrQuorumNotReached    = err.New("quorum not reached")           // 未达到多数派
+	ErrNoAvailablePeer     = err.New("no available peer")            // 没有可用的 peer
+	ErrInvalidArgument     = err.New("invalid argument")             // 无效的参数
 )
