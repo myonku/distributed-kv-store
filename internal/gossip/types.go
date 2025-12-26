@@ -3,9 +3,9 @@ package gossip
 type NodeState int
 
 const (
-	StateAlive NodeState = iota
-	StateSuspect
-	StateDead
+	StateAlive   NodeState = iota // 节点存活
+	StateSuspect                  // 节点可疑
+	StateDead                     // 节点死亡
 )
 
 // 表示一个集群成员节点的信息

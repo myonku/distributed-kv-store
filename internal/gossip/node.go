@@ -10,10 +10,10 @@ import (
 type EventType int
 
 const (
-	EventMemberUp EventType = iota
-	EventMemberSuspect
-	EventMemberDead
-	EventMembershipChanged
+	EventMemberUp          EventType = iota // 新节点加入
+	EventMemberSuspect                      // 节点被标记为可疑
+	EventMemberDead                         // 节点被标记为死亡
+	EventMembershipChanged                  // 成员信息变更
 )
 
 type Event struct {
@@ -46,7 +46,7 @@ type Node struct {
 
 // 创建新的 Gossip 节点实例
 func NewNode(cfg *configs.AppConfig, transport Transport) *Node {
-	menber := Member{
+	member := Member{
 		ID:                cfg.Self.ID,
 		GossipGRPCAddress: cfg.Self.GossipGRPCAddress,
 		ClientAddress:     cfg.Self.ClientAddress,
@@ -57,7 +57,7 @@ func NewNode(cfg *configs.AppConfig, transport Transport) *Node {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Node{
-		self:           &menber,
+		self:           &member,
 		members:        make(map[string]*Member),
 		probeInterval:  time.Duration(cfg.GossipConfig.ProbeIntervalMs) * time.Millisecond,
 		probeTimeout:   time.Duration(cfg.GossipConfig.ProbeTimeoutMs) * time.Millisecond,

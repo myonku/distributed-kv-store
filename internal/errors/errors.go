@@ -14,4 +14,5 @@ var (
 	ErrQuorumNotReached    = err.New("quorum not reached")           // 未达到多数派
 	ErrNoAvailablePeer     = err.New("no available peer")            // 没有可用的 peer
 	ErrInvalidArgument     = err.New("invalid argument")             // 无效的参数
+	ErrNoVNodeOwner        = err.New("no vnode owner")               // 没有虚拟节点的拥有者
 )

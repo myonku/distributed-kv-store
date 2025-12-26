@@ -116,14 +116,14 @@ func (n *Node) makeDigest() []Digest {
 	return digests
 }
 
-// 订阅节点事件
+// 订阅节点事件，提供事件广播通道
 func (n *Node) Subscribe() <-chan Event {
 	// 占位：目前直接复用共享 events 通道。
 	// TODO: 如需多订阅者独立消费，可在这里实现 fan-out。
 	return n.events
 }
 
-// 事件通道
+// 事件通道。仅提供单一只通道供外部消费
 func (n *Node) Events() <-chan Event {
 	return n.events
 }
@@ -163,7 +163,7 @@ func (n *Node) probeOnce(ctx context.Context) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if m, ok := n.members[peerID]; ok {
-		old := m.State
+		old := *m
 		m.State = StateAlive
 		m.StateUpdated = time.Now().UnixNano()
 		n.emitEventIfChangedLocked(ctx, *m, old)
@@ -187,11 +187,11 @@ func (n *Node) onProbeTimeout(ctx context.Context, peerID string) {
 	if m.State == StateDead {
 		return
 	}
-	oldState := m.State
+	old := *m
 	// TODO: 更精细的失败检测策略（阈值、间接探测、反熵等）
 	m.State = StateSuspect
 	m.StateUpdated = time.Now().UnixNano()
-	n.emitEventIfChangedLocked(ctx, *m, oldState)
+	n.emitEventIfChangedLocked(ctx, *m, old)
 }
 
 // 清理状态为 Suspect 和 Dead 的节点
@@ -214,7 +214,7 @@ func (n *Node) reapSuspectsAndDeads(ctx context.Context) {
 		case StateSuspect:
 			// 超时则标记为 Dead
 			if n.suspectTimeout > 0 && age >= n.suspectTimeout {
-				old := m.State
+				old := *m
 				m.State = StateDead
 				m.StateUpdated = now
 				n.emitEventIfChangedLocked(ctx, *m, old)
@@ -315,7 +315,7 @@ func (n *Node) applyDelta(ctx context.Context, delta []Member) error {
 				m.StateUpdated = now
 			}
 			n.members[m.ID] = &m
-			n.emitEventIfChangedLocked(ctx, m, StateDead)
+			n.emitEventIfChangedLocked(ctx, m, Member{})
 			continue
 		}
 
@@ -326,7 +326,7 @@ func (n *Node) applyDelta(ctx context.Context, delta []Member) error {
 			continue
 		}
 
-		old := local.State
+		old := *local
 		*local = incoming
 		if local.StateUpdated == 0 {
 			local.StateUpdated = now
@@ -337,34 +337,51 @@ func (n *Node) applyDelta(ctx context.Context, delta []Member) error {
 }
 
 // 成员视图发生变化时触发事件
-func (n *Node) emitEventIfChanged(ctx context.Context, member Member, oldState NodeState) {
+func (n *Node) emitEventIfChanged(ctx context.Context, member Member, old Member) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.emitEventIfChangedLocked(ctx, member, oldState)
+	n.emitEventIfChangedLocked(ctx, member, old)
 }
 
 // 更新成员视图发生变化时触发事件（调用方需持有锁）
-func (n *Node) emitEventIfChangedLocked(_ context.Context, member Member, oldState NodeState) {
 
-	// 未发生变化则忽略
-	if member.State == oldState {
+func (n *Node) emitEventIfChangedLocked(_ context.Context, member Member, old Member) {
+
+	// 状态变化或关键字段更新（incarnation/stateUpdated/地址/权重等）时触发事件
+	changed := false
+	if old.ID == "" {
+		changed = true
+	} else if member.State != old.State ||
+		member.Incarnation != old.Incarnation ||
+		member.StateUpdated != old.StateUpdated ||
+		member.GossipGRPCAddress != old.GossipGRPCAddress ||
+		member.ClientAddress != old.ClientAddress ||
+		member.Weight != old.Weight {
+		changed = true
+	}
+	if !changed {
 		return
 	}
 
 	var et EventType
-	switch member.State {
-	case StateAlive:
-		et = EventMemberUp
-	case StateSuspect:
-		et = EventMemberSuspect
-	case StateDead:
-		et = EventMemberDead
-	default:
+	if old.ID != "" && member.State == old.State {
+		// 状态没变但重要字段变了：用 MembershipChanged 便于外部（如 ring）刷新
 		et = EventMembershipChanged
+	} else {
+		switch member.State {
+		case StateAlive:
+			et = EventMemberUp
+		case StateSuspect:
+			et = EventMemberSuspect
+		case StateDead:
+			et = EventMemberDead
+		default:
+			et = EventMembershipChanged
+		}
 	}
 
 	// 快照（避免调用 Snapshot() 造成锁重入）

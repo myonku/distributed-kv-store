@@ -66,8 +66,7 @@ func (n *Node) HandlePing(ctx context.Context, req *PingRequest) (*PingResponse,
 		// n.emitEventIfChanged(ctx, *m, StateDead)
 		return &PingResponse{OK: true}, nil
 	}
-
-	oldState := member.State
+	old := *member
 	// 占位合并规则：incarnation 更大则覆盖；否则仅刷新存活时间
 	if req.FromIncarnation > member.Incarnation {
 		member.Incarnation = req.FromIncarnation
@@ -82,7 +81,8 @@ func (n *Node) HandlePing(ctx context.Context, req *PingRequest) (*PingResponse,
 		}
 	}
 
-	n.emitEventIfChanged(ctx, *member, oldState)
+	// 已持有 n.mu
+	n.emitEventIfChangedLocked(ctx, *member, old)
 
 	return &PingResponse{OK: true}, nil
 }
@@ -121,12 +121,13 @@ func (n *Node) HandlePushPull(ctx context.Context, req *PushPullRequest) (*PushP
 		// 占位冲突规则：incarnation 大者胜；相等则按 stateUpdated 较新者胜
 		if incoming.Incarnation > local.Incarnation ||
 			(incoming.Incarnation == local.Incarnation && incoming.StateUpdated > local.StateUpdated) {
-			oldState := local.State
+			old := *local
 			*local = incoming
 			if local.StateUpdated == 0 {
 				local.StateUpdated = now
 			}
-			n.emitEventIfChanged(ctx, *local, oldState)
+			// 这里已持有 n.mu
+			n.emitEventIfChangedLocked(ctx, *local, old)
 		}
 	}
 

@@ -9,9 +9,9 @@ type ConfChangeType int // 配置变更类型
 type MembershipType string
 
 const (
-	MembershipStatic MembershipType = "static"
-	MembershipRaft   MembershipType = "raft"
-	MembershipGossip MembershipType = "gossip"
+	MembershipStatic         MembershipType = "static"
+	MembershipRaft           MembershipType = "raft"
+	MembershipConsHashGossip MembershipType = "chash_gossip"
 )
 
 const (
