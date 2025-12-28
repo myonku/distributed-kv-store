@@ -134,11 +134,12 @@ type Member struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	GossipGrpcAddress string                 `protobuf:"bytes,2,opt,name=gossip_grpc_address,json=gossipGrpcAddress,proto3" json:"gossip_grpc_address,omitempty"`
-	ClientAddress     string                 `protobuf:"bytes,3,opt,name=client_address,json=clientAddress,proto3" json:"client_address,omitempty"`
-	Weight            int32                  `protobuf:"varint,4,opt,name=weight,proto3" json:"weight,omitempty"`
-	State             NodeState              `protobuf:"varint,5,opt,name=state,proto3,enum=gossip.v1.NodeState" json:"state,omitempty"`
-	Incarnation       uint64                 `protobuf:"varint,6,opt,name=incarnation,proto3" json:"incarnation,omitempty"`
-	StateUpdated      int64                  `protobuf:"varint,7,opt,name=state_updated,json=stateUpdated,proto3" json:"state_updated,omitempty"`
+	ChashGrpcAddress  string                 `protobuf:"bytes,3,opt,name=chash_grpc_address,json=chashGrpcAddress,proto3" json:"chash_grpc_address,omitempty"`
+	ClientAddress     string                 `protobuf:"bytes,4,opt,name=client_address,json=clientAddress,proto3" json:"client_address,omitempty"`
+	Weight            int32                  `protobuf:"varint,5,opt,name=weight,proto3" json:"weight,omitempty"`
+	State             NodeState              `protobuf:"varint,6,opt,name=state,proto3,enum=gossip.v1.NodeState" json:"state,omitempty"`
+	Incarnation       uint64                 `protobuf:"varint,7,opt,name=incarnation,proto3" json:"incarnation,omitempty"`
+	StateUpdated      int64                  `protobuf:"varint,8,opt,name=state_updated,json=stateUpdated,proto3" json:"state_updated,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -183,6 +184,13 @@ func (x *Member) GetId() string {
 func (x *Member) GetGossipGrpcAddress() string {
 	if x != nil {
 		return x.GossipGrpcAddress
+	}
+	return ""
+}
+
+func (x *Member) GetChashGrpcAddress() string {
+	if x != nil {
+		return x.ChashGrpcAddress
 	}
 	return ""
 }
@@ -430,15 +438,16 @@ const file_internal_gossip_g_proto_rawDesc = "" +
 	"\x06Digest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
 	"\vincarnation\x18\x02 \x01(\x04R\vincarnation\x12*\n" +
-	"\x05state\x18\x03 \x01(\x0e2\x14.gossip.v1.NodeStateR\x05state\"\xfa\x01\n" +
+	"\x05state\x18\x03 \x01(\x0e2\x14.gossip.v1.NodeStateR\x05state\"\xa8\x02\n" +
 	"\x06Member\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
-	"\x13gossip_grpc_address\x18\x02 \x01(\tR\x11gossipGrpcAddress\x12%\n" +
-	"\x0eclient_address\x18\x03 \x01(\tR\rclientAddress\x12\x16\n" +
-	"\x06weight\x18\x04 \x01(\x05R\x06weight\x12*\n" +
-	"\x05state\x18\x05 \x01(\x0e2\x14.gossip.v1.NodeStateR\x05state\x12 \n" +
-	"\vincarnation\x18\x06 \x01(\x04R\vincarnation\x12#\n" +
-	"\rstate_updated\x18\a \x01(\x03R\fstateUpdated\"Q\n" +
+	"\x13gossip_grpc_address\x18\x02 \x01(\tR\x11gossipGrpcAddress\x12,\n" +
+	"\x12chash_grpc_address\x18\x03 \x01(\tR\x10chashGrpcAddress\x12%\n" +
+	"\x0eclient_address\x18\x04 \x01(\tR\rclientAddress\x12\x16\n" +
+	"\x06weight\x18\x05 \x01(\x05R\x06weight\x12*\n" +
+	"\x05state\x18\x06 \x01(\x0e2\x14.gossip.v1.NodeStateR\x05state\x12 \n" +
+	"\vincarnation\x18\a \x01(\x04R\vincarnation\x12#\n" +
+	"\rstate_updated\x18\b \x01(\x03R\fstateUpdated\"Q\n" +
 	"\vPingRequest\x12\x17\n" +
 	"\afrom_id\x18\x01 \x01(\tR\x06fromId\x12)\n" +
 	"\x10from_incarnation\x18\x02 \x01(\x04R\x0ffromIncarnation\"\x1e\n" +

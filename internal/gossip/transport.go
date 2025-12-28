@@ -108,13 +108,15 @@ func (n *Node) HandlePushPull(ctx context.Context, req *PushPullRequest) (*PushP
 		}
 
 		local, ok := n.members[incoming.ID]
-		if !ok {
+		if !ok { // 新成员
 			m := incoming // copy
 			// 如果对端未携带时间，至少保证本地有更新时间
 			if m.StateUpdated == 0 {
 				m.StateUpdated = now
 			}
 			n.members[incoming.ID] = &m
+			// 新成员第一次进入本地视图时也要触发事件，便于上层（如 ring）立刻刷新
+			n.emitEventIfChangedLocked(ctx, m, Member{})
 			continue
 		}
 
@@ -126,7 +128,7 @@ func (n *Node) HandlePushPull(ctx context.Context, req *PushPullRequest) (*PushP
 			if local.StateUpdated == 0 {
 				local.StateUpdated = now
 			}
-			// 这里已持有 n.mu
+			// 已持有 n.mu
 			n.emitEventIfChangedLocked(ctx, *local, old)
 		}
 	}

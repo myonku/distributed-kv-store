@@ -5,6 +5,24 @@ import (
 	"sync"
 )
 
+// 一致性哈希模式下的逻辑节点
+type Node struct {
+	id               string // 本节点 ID
+	clientAddress    string // 对外服务地址
+	chashGRPCAddress string // 节点间通信地址
+	weight           int    // 环节点的权重
+}
+
+// 构造一个一致性哈希逻辑节点
+func NewNode(id, clientAddress, chashGRPCAddress string, weight int) *Node {
+	return &Node{
+		id:               id,
+		clientAddress:    clientAddress,
+		chashGRPCAddress: chashGRPCAddress,
+		weight:           weight,
+	}
+}
+
 // 基于虚拟节点的简单一致性哈希实现
 type HashRing struct {
 	mu sync.RWMutex

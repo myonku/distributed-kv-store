@@ -66,17 +66,17 @@ func (r *HashRing) Rebuild(nodes []Node) error {
 	}
 
 	for _, n := range nodes {
-		weight := n.Weight
+		weight := n.weight
 		if weight <= 0 {
 			weight = 1
 		}
-		replicas := virtualNodes * weight
+		replicas := virtualNodes * weight // 根据节点权重调整虚拟节点数
 		for i := range replicas {
 			// 用 nodeID + replicaIndex 生成虚拟节点 key
-			vkey := fmt.Sprintf("%s#%d", n.ID, i)
+			vkey := fmt.Sprintf("%s#%d", n.id, i)
 			h := hashKey(vkey)
-			r.vnodeOwners[h] = n.ID
-			r.VitrualNodesMap[strconv.FormatUint(uint64(h), 10)] = n.ID
+			r.vnodeOwners[h] = n.id
+			r.VitrualNodesMap[strconv.FormatUint(uint64(h), 10)] = n.id
 			r.ringKeys = append(r.ringKeys, h)
 		}
 	}

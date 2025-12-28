@@ -49,6 +49,7 @@ func NewNode(cfg *configs.AppConfig, transport Transport) *Node {
 	member := Member{
 		ID:                cfg.Self.ID,
 		GossipGRPCAddress: cfg.Self.GossipGRPCAddress,
+		CHashGRPCAddress:  cfg.Self.CHashGRPCAddress,
 		ClientAddress:     cfg.Self.ClientAddress,
 		Weight:            cfg.Self.Weight,
 		State:             StateAlive,

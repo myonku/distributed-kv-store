@@ -48,6 +48,7 @@ func (n *Node) Join(seeds []configs.ClusterNode) error {
 			n.members[s.ID] = &Member{
 				ID:                s.ID,
 				GossipGRPCAddress: s.GossipGRPCAddress,
+				CHashGRPCAddress:  s.CHashGRPCAddress,
 				ClientAddress:     s.ClientAddress,
 				Weight:            s.Weight,
 				State:             StateAlive,
@@ -118,8 +119,7 @@ func (n *Node) makeDigest() []Digest {
 
 // 订阅节点事件，提供事件广播通道
 func (n *Node) Subscribe() <-chan Event {
-	// 占位：目前直接复用共享 events 通道。
-	// TODO: 如需多订阅者独立消费，可在这里实现 fan-out。
+	// TODO: 支持多订阅者广播
 	return n.events
 }
 
@@ -348,7 +348,6 @@ func (n *Node) emitEventIfChanged(ctx context.Context, member Member, old Member
 }
 
 // 更新成员视图发生变化时触发事件（调用方需持有锁）
-
 func (n *Node) emitEventIfChangedLocked(_ context.Context, member Member, old Member) {
 
 	// 状态变化或关键字段更新（incarnation/stateUpdated/地址/权重等）时触发事件
@@ -359,6 +358,7 @@ func (n *Node) emitEventIfChangedLocked(_ context.Context, member Member, old Me
 		member.Incarnation != old.Incarnation ||
 		member.StateUpdated != old.StateUpdated ||
 		member.GossipGRPCAddress != old.GossipGRPCAddress ||
+		member.CHashGRPCAddress != old.CHashGRPCAddress ||
 		member.ClientAddress != old.ClientAddress ||
 		member.Weight != old.Weight {
 		changed = true
@@ -446,7 +446,7 @@ func (n *Node) pickPeers(fanout int) ([]string, error) {
 		candidates[i], candidates[j] = candidates[j], candidates[i]
 	}
 	if fanout >= len(candidates) {
-		return candidates, errors.ErrNoAvailablePeer
+		return candidates, nil
 	}
 	return candidates[:fanout], nil
 }

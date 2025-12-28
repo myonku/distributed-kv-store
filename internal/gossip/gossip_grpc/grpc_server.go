@@ -59,6 +59,7 @@ func (s *GossipGRPCServer) PushPull(ctx context.Context, req *PushPullRequest) (
 			internalReq.FullMembers = append(internalReq.FullMembers, gossip.Member{
 				ID:                m.Id,
 				GossipGRPCAddress: m.GossipGrpcAddress,
+				CHashGRPCAddress:  m.ChashGrpcAddress,
 				ClientAddress:     m.ClientAddress,
 				Weight:            int(m.Weight),
 				State:             fromPBState(m.State),
@@ -80,6 +81,7 @@ func (s *GossipGRPCServer) PushPull(ctx context.Context, req *PushPullRequest) (
 			pbResp.Delta = append(pbResp.Delta, &Member{
 				Id:                m.ID,
 				GossipGrpcAddress: m.GossipGRPCAddress,
+				ChashGrpcAddress:  m.CHashGRPCAddress,
 				ClientAddress:     m.ClientAddress,
 				Weight:            int32(m.Weight),
 				State:             toPBState(m.State),

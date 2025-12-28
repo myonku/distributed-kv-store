@@ -9,8 +9,11 @@ import (
 // 基于Gossip + 一致性哈希模式的分布式 KVService 实现
 type CHashKVService struct {
 	memberBridge *bridge.MemberBridge // 持有 gossip 节点和一致性哈希环实例
-	st           storage.Storage      // 本地存储
+
+	st storage.Storage // 本地存储
 }
+
+// 请求路由到对应节点处理，若不是本节点则通过 RemoteClient 转发
 
 func (s *CHashKVService) Put(ctx context.Context, key, value string) error {
 	return nil

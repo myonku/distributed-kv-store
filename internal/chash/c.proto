@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package chash.v1;
+
+option go_package = "./internal/chash/chash_grpc;chash_grpc";
+
+message Member {
+	string id = 1;
+	string gossip_grpc_address = 2;
+	string chash_grpc_address = 3;
+	string client_address = 4;
+	int32 weight = 5;
+
+	NodeState state = 6;
+	uint64 incarnation = 7;
+	int64 state_updated = 8;
+}
+
+service CHashService {
+	rpc Ping(PingRequest) returns (PingResponse);
+	rpc PushPull(PushPullRequest) returns (PushPullResponse);
+}

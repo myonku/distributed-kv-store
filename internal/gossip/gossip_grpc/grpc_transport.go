@@ -93,6 +93,7 @@ func (t *GRPCTransport) PushPull(
 			pbReq.FullMembers = append(pbReq.FullMembers, &Member{
 				Id:                m.ID,
 				GossipGrpcAddress: m.GossipGRPCAddress,
+				ChashGrpcAddress:  m.CHashGRPCAddress,
 				ClientAddress:     m.ClientAddress,
 				Weight:            int32(m.Weight),
 				State:             toPBState(m.State),
@@ -115,6 +116,7 @@ func (t *GRPCTransport) PushPull(
 				ID:                m.Id,
 				GossipGRPCAddress: m.GossipGrpcAddress,
 				ClientAddress:     m.ClientAddress,
+				CHashGRPCAddress:  m.ChashGrpcAddress,
 				Weight:            int(m.Weight),
 				State:             fromPBState(m.State),
 				Incarnation:       m.Incarnation,
