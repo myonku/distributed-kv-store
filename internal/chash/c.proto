@@ -4,19 +4,38 @@ package chash.v1;
 
 option go_package = "./internal/chash/chash_grpc;chash_grpc";
 
-message Member {
-	string id = 1;
-	string gossip_grpc_address = 2;
-	string chash_grpc_address = 3;
-	string client_address = 4;
-	int32 weight = 5;
+message KVPair {
+    string key = 1;
+    string value = 2;
+}
 
-	NodeState state = 6;
-	uint64 incarnation = 7;
-	int64 state_updated = 8;
+message PushBatchRequest {
+    repeated KVPair kvs = 1;
+}
+
+message PushBatchResponse {
+    bool ok = 1;
+}
+
+message PullRangeRequest {
+    string start_key = 1;
+    string end_key = 2;
+}
+
+message PullRangeResponse {
+    repeated KVPair kvs = 1;
+}
+
+message ReplicateRequest {
+    repeated KVPair kvs = 1;
+}
+
+message ReplicateResponse {
+    bool ok = 1;
 }
 
 service CHashService {
-	rpc Ping(PingRequest) returns (PingResponse);
-	rpc PushPull(PushPullRequest) returns (PushPullResponse);
+    rpc PushBatch(PushBatchRequest) returns (PushBatchResponse);
+    rpc PullRange(PullRangeRequest) returns (PullRangeResponse);
+    rpc Replicate(ReplicateRequest) returns (ReplicateResponse);
 }

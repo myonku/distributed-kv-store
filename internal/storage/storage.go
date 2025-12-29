@@ -7,15 +7,17 @@ import (
 	"distributed-kv-store/configs"
 )
 
-// 内存实现 + 简单的 index 递增，用于单机/早期开发阶段。
+// 内存实现 + 简单的 index 递增，用于早期开发阶段
 type memoryStorage struct {
 	mu sync.RWMutex
 
 	// 业务 KV 状态机数据
+
 	data   map[string]string
 	kvLogs []Command // 业务 KV 的操作日志
 
 	// Raft 相关数据
+
 	raftLogs      []RaftLogEntry // Raft 日志条目
 	raftHardState *RaftHardState // 当前 Raft 硬状态（如未设置则为 nil）
 }

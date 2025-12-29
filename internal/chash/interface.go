@@ -10,16 +10,22 @@ type Ring interface {
 	Rebuild(nodes []Node) error
 }
 
-// CHASH 节点远程客户端接口（业务转发）
-type RemoteClient interface {
-	Put(ctx context.Context, nodeID, key, value string) error
-	Get(ctx context.Context, nodeID, key string) (string, error)
-	Delete(ctx context.Context, nodeID, key string) error
+// 用于节点间批量数据交换（副本、迁移等）
+type KVPair struct {
+	Key   string
+	Value string
 }
 
-// CHASH 层内部通信，用于副本/数据同步
+// 用于业务转发（data-plane），调用目标节点的对外 HTTP 接口
+type RemoteClient interface {
+	Put(ctx context.Context, targetAddr, key, value string) error
+	Get(ctx context.Context, targetAddr, key string) (string, error)
+	Delete(ctx context.Context, targetAddr, key string) error
+}
+
+// 用于 CHASH 层内部通信（control-plane），用于副本/迁移/反熵等
 type Transport interface {
-	Replicate(ctx context.Context, nodeID string, data map[string]string) error
-	PullRange(ctx context.Context, nodeID, key string, values map[string]string) error
-	PushBatch(ctx context.Context, nodeID string, data map[string]string) error
+	PushBatch(ctx context.Context, to string, kvs []KVPair) error
+	PullRange(ctx context.Context, to string, startKey, endKey string) ([]KVPair, error)
+	Replicate(ctx context.Context, to string, kvs []KVPair) error
 }

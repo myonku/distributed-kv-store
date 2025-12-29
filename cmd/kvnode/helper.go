@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+
+	"google.golang.org/grpc"
 )
 
 // 根据配置的运行模式构造对应的 KVService 实现，返回全部内部资源以便调用方管理生命周期
@@ -80,7 +82,7 @@ func startRaftGRPCServer(appCfg *configs.AppConfig, node *raft.Node) error {
 	}
 
 	srv := raft_grpc.NewRaftGRPCServer(node)
-	grpcServer := raft_grpc.NewGRPCServerWrapper()
+	grpcServer := NewGRPCServer()
 	// 注册 RaftService 服务
 	raft_grpc.RegisterRaftServiceServer(grpcServer, srv)
 
@@ -91,4 +93,9 @@ func startRaftGRPCServer(appCfg *configs.AppConfig, node *raft.Node) error {
 	}()
 
 	return nil
+}
+
+// 生成一个标准 grpc.Server，供外部统一创建
+func NewGRPCServer() *grpc.Server {
+	return grpc.NewServer()
 }

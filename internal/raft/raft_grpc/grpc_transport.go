@@ -28,7 +28,7 @@ func NewGRPCTransport(peers []configs.ClusterNode) (*GRPCTransport, error) {
 	}
 	for _, p := range peers {
 		options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())} // TODO: 配置凭证/超时等
-		conn, err := grpc.Dial(p.RaftGRPCAddress, options...)
+		conn, err := grpc.NewClient(p.RaftGRPCAddress, options...)
 		if err != nil {
 			return nil, fmt.Errorf("dial %s: %w", p.RaftGRPCAddress, err)
 		}
@@ -128,7 +128,7 @@ func (t *GRPCTransport) SendRequestVote(
 }
 
 // 添加集群节点
-func (t *GRPCTransport) AddPeer(peer configs.ClusterNode) error {
+func (t *GRPCTransport) AddPeer(peer configs.ClusterNode, options ...grpc.DialOption) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if _, exists := t.cli[peer.ID]; exists {
@@ -137,7 +137,9 @@ func (t *GRPCTransport) AddPeer(peer configs.ClusterNode) error {
 		delete(t.conns, peer.ID)
 		delete(t.cli, peer.ID)
 	}
-	options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	if options == nil {
+		options = []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	}
 	conn, err := grpc.NewClient(peer.RaftGRPCAddress, options...)
 	if err != nil {
 		return fmt.Errorf("dial %s: %w", peer.RaftGRPCAddress, err)
@@ -151,16 +153,11 @@ func (t *GRPCTransport) AddPeer(peer configs.ClusterNode) error {
 func (t *GRPCTransport) RemovePeer(peerID string) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	conn, exists := t.conns[peerID]
-	if !exists {
-		return nil // 不存在，直接返回
+	if conn, ok := t.conns[peerID]; ok {
+		conn.Close()
+		delete(t.conns, peerID)
+		delete(t.cli, peerID)
 	}
-	err := conn.Close()
-	if err != nil {
-		return err
-	}
-	delete(t.conns, peerID)
-	delete(t.cli, peerID)
 	return nil
 }
 

@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// 最小实现用于节点间 Ping/PushPull。
+// 最小实现用于节点间 Ping/PushPull
 type GRPCTransport struct {
 	mu    sync.RWMutex
 	conns map[string]*grpc.ClientConn    // peerID -> conn
@@ -129,7 +129,7 @@ func (t *GRPCTransport) PushPull(
 }
 
 // 添加新的 Peer 连接
-func (t *GRPCTransport) AddPeer(peer configs.ClusterNode) error {
+func (t *GRPCTransport) AddPeer(peer configs.ClusterNode, options ...grpc.DialOption) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -138,8 +138,9 @@ func (t *GRPCTransport) AddPeer(peer configs.ClusterNode) error {
 		delete(t.conns, peer.ID)
 		delete(t.cli, peer.ID)
 	}
-
-	options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	if options == nil {
+		options = []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	}
 	conn, err := grpc.NewClient(peer.GossipGRPCAddress, options...)
 	if err != nil {
 		return fmt.Errorf("dial %s: %w", peer.GossipGRPCAddress, err)
@@ -155,17 +156,11 @@ func (t *GRPCTransport) RemovePeer(peerID string) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	conn, exists := t.conns[peerID]
-	if !exists {
-		return nil
+	if conn, ok := t.conns[peerID]; ok {
+		conn.Close()
+		delete(t.conns, peerID)
+		delete(t.cli, peerID)
 	}
-
-	if err := conn.Close(); err != nil {
-		return err
-	}
-
-	delete(t.conns, peerID)
-	delete(t.cli, peerID)
 	return nil
 }
 

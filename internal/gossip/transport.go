@@ -4,6 +4,8 @@ import (
 	"context"
 	"distributed-kv-store/configs"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 type Transport interface {
@@ -12,7 +14,7 @@ type Transport interface {
 	// 发送 PushPull 消息
 	PushPull(ctx context.Context, to string, req *PushPullRequest) (*PushPullResponse, error)
 	// 添加新的集群节点连接（本地）
-	AddPeer(peer configs.ClusterNode) error
+	AddPeer(peer configs.ClusterNode, options ...grpc.DialOption) error
 	// 移除某个集群节点的连接（本地）
 	RemovePeer(peerID string) error
 }

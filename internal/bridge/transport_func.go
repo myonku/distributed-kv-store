@@ -1,0 +1,133 @@
+package bridge
+
+import (
+	"context"
+	"distributed-kv-store/internal/chash"
+	"distributed-kv-store/internal/errors"
+)
+
+// 根据 key 查询负责节点 ID
+func (b *MemberBridge) OwnerNodeID(key string) (nodeID string, ok bool, err error) {
+	if b == nil || b.consHashRing == nil {
+		return "", false, errors.ErrResourceNotInit
+	}
+	return b.consHashRing.GetNode(key)
+}
+
+// 返回指定节点对外服务地址
+func (b *MemberBridge) ClientAddress(nodeID string) (addr string, ok bool) {
+	if b == nil {
+		return "", false
+	}
+	v, exists := b.memberAddrs.Load(nodeID)
+	if !exists {
+		return "", false
+	}
+	info, typeOK := v.(MemberAddrInfo)
+	if !typeOK {
+		return "", false
+	}
+	if info.clientAddress == "" {
+		return "", false
+	}
+	return info.clientAddress, true
+}
+
+// 返回指定节点 chash 内部通信地址。
+func (b *MemberBridge) CHashGRPCAddress(nodeID string) (addr string, ok bool) {
+	if b == nil {
+		return "", false
+	}
+	v, exists := b.memberAddrs.Load(nodeID)
+	if !exists {
+		return "", false
+	}
+	info, typeOK := v.(MemberAddrInfo)
+	if !typeOK {
+		return "", false
+	}
+	if info.chashGRPCAddress == "" {
+		return "", false
+	}
+	return info.chashGRPCAddress, true
+}
+
+// region 远程业务请求转发相关
+
+// 将 Put 业务请求转发到目标节点
+func (b *MemberBridge) ForwardPut(ctx context.Context, nodeID, key, value string) error {
+	if b == nil || b.remoteClient == nil {
+		return errors.ErrResourceNotInit
+	}
+	addr, ok := b.ClientAddress(nodeID)
+	if !ok {
+		return errors.ErrResourceNotInit
+	}
+	return b.remoteClient.Put(ctx, addr, key, value)
+}
+
+// 将 Get 业务请求转发到目标节点
+func (b *MemberBridge) ForwardGet(ctx context.Context, nodeID, key string) (string, error) {
+	if b == nil || b.remoteClient == nil {
+		return "", errors.ErrResourceNotInit
+	}
+	addr, ok := b.ClientAddress(nodeID)
+	if !ok {
+		return "", errors.ErrResourceNotInit
+	}
+	return b.remoteClient.Get(ctx, addr, key)
+}
+
+// 将 Delete 业务请求转发到目标节点
+func (b *MemberBridge) ForwardDelete(ctx context.Context, nodeID, key string) error {
+	if b == nil || b.remoteClient == nil {
+		return errors.ErrResourceNotInit
+	}
+	addr, ok := b.ClientAddress(nodeID)
+	if !ok {
+		return errors.ErrResourceNotInit
+	}
+	return b.remoteClient.Delete(ctx, addr, key)
+}
+
+// endregion
+
+// region 内部通信方法
+
+// 内部通信：向目标节点推送一批 KV
+func (b *MemberBridge) PushBatch(ctx context.Context, nodeID string, kvs []chash.KVPair) error {
+	if b == nil || b.transport == nil {
+		return errors.ErrResourceNotInit
+	}
+	addr, ok := b.CHashGRPCAddress(nodeID)
+	if !ok {
+		return errors.ErrResourceNotInit
+	}
+	return b.transport.PushBatch(ctx, addr, kvs)
+}
+
+// 内部通信：从目标节点拉取 [startKey, endKey) 的 KV
+func (b *MemberBridge) PullRange(ctx context.Context, nodeID, startKey, endKey string) ([]chash.KVPair, error) {
+	if b == nil || b.transport == nil {
+		return nil, errors.ErrResourceNotInit
+	}
+	addr, ok := b.CHashGRPCAddress(nodeID)
+	if !ok {
+		return nil, errors.ErrResourceNotInit
+	}
+	return b.transport.PullRange(ctx, addr, startKey, endKey)
+}
+
+// 内部通信：向目标节点复制一批 KV（语义上可用于副本写/反熵）
+func (b *MemberBridge) Replicate(ctx context.Context, nodeID string, kvs []chash.KVPair) error {
+	if b == nil || b.transport == nil {
+		return errors.ErrResourceNotInit
+	}
+	addr, ok := b.CHashGRPCAddress(nodeID)
+	if !ok {
+		return errors.ErrResourceNotInit
+	}
+	return b.transport.Replicate(ctx, addr, kvs)
+}
+
+// endregion

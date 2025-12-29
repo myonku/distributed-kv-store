@@ -9,7 +9,11 @@ import (
 
 // 提取 gossip 成员信息为 chash 节点
 func MemberToNode(m *gossip.Member) *chash.Node {
-	return chash.NewNode(m.ID, m.ClientAddress, m.CHashGRPCAddress, m.Weight)
+	return chash.NewNode(
+		m.ID,
+		m.ClientAddress,
+		m.CHashGRPCAddress,
+		m.Weight)
 }
 
 // 批量转换 gossip 成员为 chash 节点列表
@@ -30,8 +34,15 @@ func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) error {
 	aliveOrSuspect := make([]gossip.Member, 0, len(snapshot))
 	for _, m := range snapshot {
 		if m.State == gossip.StateDead {
+			// dead 直接从地址表移除
+			b.memberAddrs.Delete(m.ID)
 			continue
 		}
+		// 维护节点地址信息，用于后续业务转发/内部通信
+		b.memberAddrs.Store(m.ID, MemberAddrInfo{
+			clientAddress:    m.ClientAddress,
+			chashGRPCAddress: m.CHashGRPCAddress,
+		})
 		aliveOrSuspect = append(aliveOrSuspect, m)
 	}
 	return b.consHashRing.Rebuild(MembersToNodes(aliveOrSuspect))

@@ -4,6 +4,8 @@ import (
 	"context"
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/raft/raft_store"
+
+	"google.golang.org/grpc"
 )
 
 // AppendEntries RPC 请求与响应
@@ -15,7 +17,7 @@ type Transport interface {
 	// 发送 RequestVote RPC
 	SendRequestVote(ctx context.Context, to string, req *RequestVoteRequest) (*RequestVoteResponse, error)
 	// 添加新的集群节点连接（本地）
-	AddPeer(peer configs.ClusterNode) error
+	AddPeer(peer configs.ClusterNode, options ...grpc.DialOption) error
 	// 移除某个集群节点的连接（本地）
 	RemovePeer(peerID string) error
 }

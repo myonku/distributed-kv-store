@@ -3,8 +3,6 @@ package gossip_grpc
 import (
 	context "context"
 	"distributed-kv-store/internal/gossip"
-
-	"google.golang.org/grpc"
 )
 
 // GossipServiceServer 的实现，内部持有 *gossip.Node
@@ -15,11 +13,6 @@ type GossipGRPCServer struct {
 
 func NewGossipGRPCServer(node *gossip.Node) *GossipGRPCServer {
 	return &GossipGRPCServer{node: node}
-}
-
-// 生成一个标准 grpc.Server，供外部统一创建
-func NewGRPCServerWrapper() *grpc.Server {
-	return grpc.NewServer()
 }
 
 // 处理 Ping RPC 调用
