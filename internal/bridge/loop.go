@@ -2,7 +2,7 @@ package bridge
 
 import "distributed-kv-store/internal/gossip"
 
-// 事件循环：消费 gossip event，更新一致性哈希环
+// 事件循环：消费 gossip event，更新环状态和成员信息
 func (b *MemberBridge) EventLoop() {
 	defer b.wg.Done()
 

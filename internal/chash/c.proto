@@ -4,13 +4,19 @@ package chash.v1;
 
 option go_package = "./internal/chash/chash_grpc;chash_grpc";
 
-message KVPair {
-    string key = 1;
-    string value = 2;
+enum CommandOperation {
+    OP_PUT = 0;
+    OP_DELETE = 1;
+}
+
+message Command {
+    CommandOperation op = 1;
+    string key = 2;
+    string value = 3;
 }
 
 message PushBatchRequest {
-    repeated KVPair kvs = 1;
+    repeated Command cmds = 1;
 }
 
 message PushBatchResponse {
@@ -18,16 +24,16 @@ message PushBatchResponse {
 }
 
 message PullRangeRequest {
-    string start_key = 1;
-    string end_key = 2;
+    uint64 start_index = 1;
+    uint64 end_index = 2;
 }
 
 message PullRangeResponse {
-    repeated KVPair kvs = 1;
+    repeated Command cmds = 1;
 }
 
 message ReplicateRequest {
-    repeated KVPair kvs = 1;
+    repeated Command cmds = 1;
 }
 
 message ReplicateResponse {

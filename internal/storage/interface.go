@@ -6,7 +6,7 @@ import (
 )
 
 type LogEntryType int
-type CommandOpration string
+type CommandOperation string
 
 const (
 	EntryNormal     LogEntryType = iota // 普通日志条目
@@ -14,14 +14,14 @@ const (
 )
 
 const (
-	OpPut    CommandOpration = "put"    // 设置键值对
-	OpDelete CommandOpration = "delete" // 删除键值对
-	OpNoop   CommandOpration = "noop"   // 空操作：用于 Raft barrier/一致性读
+	OpPut    CommandOperation = "put"    // 设置键值对
+	OpDelete CommandOperation = "delete" // 删除键值对
+	OpNoop   CommandOperation = "noop"   // 空操作：用于 Raft barrier/一致性读
 )
 
 // 表示对底层状态机的一个逻辑操作
 type Command struct {
-	Op    CommandOpration
+	Op    CommandOperation
 	Key   string
 	Value string
 }
@@ -46,10 +46,12 @@ type RaftHardState struct {
 type Storage interface {
 	// 业务 KV 日志 + 状态机
 
-	AppendLog(ctx context.Context, cmd Command) (index uint64, err error) // 添加一条业务日志记录，返回该日志的索引
-	ApplyLog(ctx context.Context, index uint64) error                     // 将指定索引的业务日志应用到状态机
-	Get(ctx context.Context, key string) (string, error)                  // 从状态机读取业务数据
-	LastIndex() uint64                                                    // 当前最后一条业务日志的索引
+	AppendLog(ctx context.Context, cmd Command) (index uint64, err error)          // 添加一条业务日志记录，返回该日志的索引
+	ApplyLog(ctx context.Context, index uint64) error                              // 将指定索引的业务日志应用到状态机
+	Get(ctx context.Context, key string) (string, error)                           // 从状态机读取业务数据
+	LastIndex() uint64                                                             // 当前最后一条业务日志的索引
+	BatchApply(ctx context.Context, cmds []Command) error                          // 批量添加业务日志并应用到状态机
+	GetBatch(ctx context.Context, startIndex, endIndex uint64) (*[]Command, error) // 批量读取 [startIndex, endIndex) 区间内的业务日志
 
 	// Raft 日志相关接口
 

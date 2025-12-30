@@ -3,7 +3,6 @@ package bridge
 import (
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/chash"
-	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/gossip"
 )
 
@@ -25,7 +24,8 @@ func MembersToNodes(members []gossip.Member) []chash.Node {
 	return nodes
 }
 
-// 从 gossip 成员快照重建一致性哈希环
+// 从 gossip 成员快照重建一致性哈希环并维护通信信息
+// 暂未实现增量更新
 func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) error {
 	if b == nil || b.consHashRing == nil {
 		return nil
@@ -36,6 +36,10 @@ func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) error {
 		if m.State == gossip.StateDead {
 			// dead 直接从地址表移除
 			b.memberAddrs.Delete(m.ID)
+			// 更新transport连接信息
+			if b.transport != nil {
+				_ = b.transport.RemoveConnection(m.ID)
+			}
 			continue
 		}
 		// 维护节点地址信息，用于后续业务转发/内部通信
@@ -43,22 +47,16 @@ func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) error {
 			clientAddress:    m.ClientAddress,
 			chashGRPCAddress: m.CHashGRPCAddress,
 		})
+		// 更新transport连接信息
+		if b.transport != nil {
+			cc := configs.ClusterNode{
+				ID:               m.ID,
+				CHashGRPCAddress: m.CHashGRPCAddress,
+				ClientAddress:    m.ClientAddress,
+			}
+			_ = b.transport.AddConnection(cc)
+		}
 		aliveOrSuspect = append(aliveOrSuspect, m)
 	}
 	return b.consHashRing.Rebuild(MembersToNodes(aliveOrSuspect))
-}
-
-// 调用 gossip 节点的 AddMember/RemoveMember 方法，功能对应 Raft层的 ProposeConfChange
-func (b *MemberBridge) HandleMemberChange(cc configs.ClusterConfigChange) error {
-	if b == nil || b.gossipNode == nil {
-		return errors.ErrResourceNotInit
-	}
-	switch cc.Type {
-	case configs.ConfChangeAddNode:
-		return b.gossipNode.AddMember(cc.Node)
-	case configs.ConfChangeRemoveNode:
-		return b.gossipNode.RemoveMember(cc.Node.ID)
-	default:
-		return errors.ErrInvalidArgument
-	}
 }

@@ -5,6 +5,7 @@ import (
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/chash"
 	"distributed-kv-store/internal/errors"
+	"distributed-kv-store/internal/storage"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -19,7 +20,7 @@ type GRPCTransport struct {
 }
 
 // 返回新的 CHash GRPCTransport 实例
-func NewGRPCTransport() *GRPCTransport {
+func NewGRPCTransport() chash.Transport {
 	return &GRPCTransport{
 		conns: make(map[string]*grpc.ClientConn),
 		cli:   make(map[string]CHashServiceClient),
@@ -27,7 +28,7 @@ func NewGRPCTransport() *GRPCTransport {
 }
 
 // PushBatch 实现
-func (t *GRPCTransport) PushBatch(ctx context.Context, to string, kvs []chash.KVPair) error {
+func (t *GRPCTransport) PushBatch(ctx context.Context, to string, cmds *[]storage.Command) error {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
@@ -36,15 +37,24 @@ func (t *GRPCTransport) PushBatch(ctx context.Context, to string, kvs []chash.KV
 	}
 
 	pbReq := &PushBatchRequest{
-		Kvs: make([]*KVPair, 0, len(kvs)),
+		Cmds: make([]*Command, 0, len(*cmds)),
 	}
-	for _, kv := range kvs {
-		pbReq.Kvs = append(pbReq.Kvs, &KVPair{
-			Key:   kv.Key,
-			Value: kv.Value,
+	for _, cmd := range *cmds {
+		var pbOp CommandOperation
+		switch cmd.Op {
+		case storage.OpPut:
+			pbOp = CommandOperation_OP_PUT
+		case storage.OpDelete:
+			pbOp = CommandOperation_OP_DELETE
+		default:
+			return errors.ErrInvalidCommandOp
+		}
+		pbReq.Cmds = append(pbReq.Cmds, &Command{
+			Op:    pbOp,
+			Key:   cmd.Key,
+			Value: cmd.Value,
 		})
 	}
-
 	resp, err := client.PushBatch(ctx, pbReq)
 	if err != nil {
 		return err
@@ -56,7 +66,7 @@ func (t *GRPCTransport) PushBatch(ctx context.Context, to string, kvs []chash.KV
 }
 
 // PullRange 实现
-func (t *GRPCTransport) PullRange(ctx context.Context, to string, startKey, endKey string) ([]chash.KVPair, error) {
+func (t *GRPCTransport) PullRange(ctx context.Context, to string, startIndex, endIndex uint64) (*[]storage.Command, error) {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
@@ -64,25 +74,36 @@ func (t *GRPCTransport) PullRange(ctx context.Context, to string, startKey, endK
 		return nil, errors.ErrClientNotExist
 	}
 	pbReq := &PullRangeRequest{
-		StartKey: startKey,
-		EndKey:   endKey,
+		StartIndex: startIndex,
+		EndIndex:   endIndex,
 	}
 	resp, err := client.PullRange(ctx, pbReq)
 	if err != nil {
 		return nil, err
 	}
-	kvs := make([]chash.KVPair, 0, len(resp.Kvs))
-	for _, pbKV := range resp.Kvs {
-		kvs = append(kvs, chash.KVPair{
-			Key:   pbKV.Key,
-			Value: pbKV.Value,
+	cmds := make([]storage.Command, 0, len(resp.Cmds))
+	for _, pbCmd := range resp.Cmds {
+		var op storage.CommandOperation
+		switch pbCmd.Op {
+		case CommandOperation_OP_PUT:
+			op = storage.OpPut
+		case CommandOperation_OP_DELETE:
+			op = storage.OpDelete
+		default:
+			return nil, errors.ErrInvalidCommandOp
+		}
+		cmds = append(cmds, storage.Command{
+			Op:    op,
+			Key:   pbCmd.Key,
+			Value: pbCmd.Value,
 		})
 	}
-	return kvs, nil
+
+	return &cmds, nil
 }
 
 // Replicate 实现
-func (t *GRPCTransport) Replicate(ctx context.Context, to string, kvs []chash.KVPair) error {
+func (t *GRPCTransport) Replicate(ctx context.Context, to string, cmds *[]storage.Command) error {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
@@ -90,15 +111,24 @@ func (t *GRPCTransport) Replicate(ctx context.Context, to string, kvs []chash.KV
 		return errors.ErrClientNotExist
 	}
 	pbReq := &ReplicateRequest{
-		Kvs: make([]*KVPair, 0, len(kvs)),
+		Cmds: make([]*Command, 0, len(*cmds)),
 	}
-	for _, kv := range kvs {
-		pbReq.Kvs = append(pbReq.Kvs, &KVPair{
-			Key:   kv.Key,
-			Value: kv.Value,
+	for _, cmd := range *cmds {
+		var pbOp CommandOperation
+		switch cmd.Op {
+		case storage.OpPut:
+			pbOp = CommandOperation_OP_PUT
+		case storage.OpDelete:
+			pbOp = CommandOperation_OP_DELETE
+		default:
+			return errors.ErrInvalidCommandOp
+		}
+		pbReq.Cmds = append(pbReq.Cmds, &Command{
+			Op:    pbOp,
+			Key:   cmd.Key,
+			Value: cmd.Value,
 		})
 	}
-
 	resp, err := client.Replicate(ctx, pbReq)
 	if err != nil {
 		return err
@@ -106,7 +136,6 @@ func (t *GRPCTransport) Replicate(ctx context.Context, to string, kvs []chash.KV
 	if !resp.Ok {
 		return errors.ErrReplicateFailed
 	}
-
 	return nil
 }
 

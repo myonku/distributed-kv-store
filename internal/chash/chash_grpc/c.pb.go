@@ -21,28 +21,75 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type KVPair struct {
+type CommandOperation int32
+
+const (
+	CommandOperation_OP_PUT    CommandOperation = 0
+	CommandOperation_OP_DELETE CommandOperation = 1
+)
+
+// Enum value maps for CommandOperation.
+var (
+	CommandOperation_name = map[int32]string{
+		0: "OP_PUT",
+		1: "OP_DELETE",
+	}
+	CommandOperation_value = map[string]int32{
+		"OP_PUT":    0,
+		"OP_DELETE": 1,
+	}
+)
+
+func (x CommandOperation) Enum() *CommandOperation {
+	p := new(CommandOperation)
+	*p = x
+	return p
+}
+
+func (x CommandOperation) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CommandOperation) Descriptor() protoreflect.EnumDescriptor {
+	return file_internal_chash_c_proto_enumTypes[0].Descriptor()
+}
+
+func (CommandOperation) Type() protoreflect.EnumType {
+	return &file_internal_chash_c_proto_enumTypes[0]
+}
+
+func (x CommandOperation) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CommandOperation.Descriptor instead.
+func (CommandOperation) EnumDescriptor() ([]byte, []int) {
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{0}
+}
+
+type Command struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Op            CommandOperation       `protobuf:"varint,1,opt,name=op,proto3,enum=chash.v1.CommandOperation" json:"op,omitempty"`
+	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *KVPair) Reset() {
-	*x = KVPair{}
+func (x *Command) Reset() {
+	*x = Command{}
 	mi := &file_internal_chash_c_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *KVPair) String() string {
+func (x *Command) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*KVPair) ProtoMessage() {}
+func (*Command) ProtoMessage() {}
 
-func (x *KVPair) ProtoReflect() protoreflect.Message {
+func (x *Command) ProtoReflect() protoreflect.Message {
 	mi := &file_internal_chash_c_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -54,19 +101,26 @@ func (x *KVPair) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use KVPair.ProtoReflect.Descriptor instead.
-func (*KVPair) Descriptor() ([]byte, []int) {
+// Deprecated: Use Command.ProtoReflect.Descriptor instead.
+func (*Command) Descriptor() ([]byte, []int) {
 	return file_internal_chash_c_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *KVPair) GetKey() string {
+func (x *Command) GetOp() CommandOperation {
+	if x != nil {
+		return x.Op
+	}
+	return CommandOperation_OP_PUT
+}
+
+func (x *Command) GetKey() string {
 	if x != nil {
 		return x.Key
 	}
 	return ""
 }
 
-func (x *KVPair) GetValue() string {
+func (x *Command) GetValue() string {
 	if x != nil {
 		return x.Value
 	}
@@ -75,7 +129,7 @@ func (x *KVPair) GetValue() string {
 
 type PushBatchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kvs           []*KVPair              `protobuf:"bytes,1,rep,name=kvs,proto3" json:"kvs,omitempty"`
+	Cmds          []*Command             `protobuf:"bytes,1,rep,name=cmds,proto3" json:"cmds,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -110,9 +164,9 @@ func (*PushBatchRequest) Descriptor() ([]byte, []int) {
 	return file_internal_chash_c_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *PushBatchRequest) GetKvs() []*KVPair {
+func (x *PushBatchRequest) GetCmds() []*Command {
 	if x != nil {
-		return x.Kvs
+		return x.Cmds
 	}
 	return nil
 }
@@ -163,8 +217,8 @@ func (x *PushBatchResponse) GetOk() bool {
 
 type PullRangeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	StartKey      string                 `protobuf:"bytes,1,opt,name=start_key,json=startKey,proto3" json:"start_key,omitempty"`
-	EndKey        string                 `protobuf:"bytes,2,opt,name=end_key,json=endKey,proto3" json:"end_key,omitempty"`
+	StartIndex    uint64                 `protobuf:"varint,1,opt,name=start_index,json=startIndex,proto3" json:"start_index,omitempty"`
+	EndIndex      uint64                 `protobuf:"varint,2,opt,name=end_index,json=endIndex,proto3" json:"end_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -199,23 +253,23 @@ func (*PullRangeRequest) Descriptor() ([]byte, []int) {
 	return file_internal_chash_c_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *PullRangeRequest) GetStartKey() string {
+func (x *PullRangeRequest) GetStartIndex() uint64 {
 	if x != nil {
-		return x.StartKey
+		return x.StartIndex
 	}
-	return ""
+	return 0
 }
 
-func (x *PullRangeRequest) GetEndKey() string {
+func (x *PullRangeRequest) GetEndIndex() uint64 {
 	if x != nil {
-		return x.EndKey
+		return x.EndIndex
 	}
-	return ""
+	return 0
 }
 
 type PullRangeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kvs           []*KVPair              `protobuf:"bytes,1,rep,name=kvs,proto3" json:"kvs,omitempty"`
+	Cmds          []*Command             `protobuf:"bytes,1,rep,name=cmds,proto3" json:"cmds,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -250,16 +304,16 @@ func (*PullRangeResponse) Descriptor() ([]byte, []int) {
 	return file_internal_chash_c_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *PullRangeResponse) GetKvs() []*KVPair {
+func (x *PullRangeResponse) GetCmds() []*Command {
 	if x != nil {
-		return x.Kvs
+		return x.Cmds
 	}
 	return nil
 }
 
 type ReplicateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kvs           []*KVPair              `protobuf:"bytes,1,rep,name=kvs,proto3" json:"kvs,omitempty"`
+	Cmds          []*Command             `protobuf:"bytes,1,rep,name=cmds,proto3" json:"cmds,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -294,9 +348,9 @@ func (*ReplicateRequest) Descriptor() ([]byte, []int) {
 	return file_internal_chash_c_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ReplicateRequest) GetKvs() []*KVPair {
+func (x *ReplicateRequest) GetCmds() []*Command {
 	if x != nil {
-		return x.Kvs
+		return x.Cmds
 	}
 	return nil
 }
@@ -349,23 +403,29 @@ var File_internal_chash_c_proto protoreflect.FileDescriptor
 
 const file_internal_chash_c_proto_rawDesc = "" +
 	"\n" +
-	"\x16internal/chash/c.proto\x12\bchash.v1\"0\n" +
-	"\x06KVPair\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"6\n" +
-	"\x10PushBatchRequest\x12\"\n" +
-	"\x03kvs\x18\x01 \x03(\v2\x10.chash.v1.KVPairR\x03kvs\"#\n" +
+	"\x16internal/chash/c.proto\x12\bchash.v1\"]\n" +
+	"\aCommand\x12*\n" +
+	"\x02op\x18\x01 \x01(\x0e2\x1a.chash.v1.CommandOperationR\x02op\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"9\n" +
+	"\x10PushBatchRequest\x12%\n" +
+	"\x04cmds\x18\x01 \x03(\v2\x11.chash.v1.CommandR\x04cmds\"#\n" +
 	"\x11PushBatchResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok\"H\n" +
-	"\x10PullRangeRequest\x12\x1b\n" +
-	"\tstart_key\x18\x01 \x01(\tR\bstartKey\x12\x17\n" +
-	"\aend_key\x18\x02 \x01(\tR\x06endKey\"7\n" +
-	"\x11PullRangeResponse\x12\"\n" +
-	"\x03kvs\x18\x01 \x03(\v2\x10.chash.v1.KVPairR\x03kvs\"6\n" +
-	"\x10ReplicateRequest\x12\"\n" +
-	"\x03kvs\x18\x01 \x03(\v2\x10.chash.v1.KVPairR\x03kvs\"#\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\"P\n" +
+	"\x10PullRangeRequest\x12\x1f\n" +
+	"\vstart_index\x18\x01 \x01(\x04R\n" +
+	"startIndex\x12\x1b\n" +
+	"\tend_index\x18\x02 \x01(\x04R\bendIndex\":\n" +
+	"\x11PullRangeResponse\x12%\n" +
+	"\x04cmds\x18\x01 \x03(\v2\x11.chash.v1.CommandR\x04cmds\"9\n" +
+	"\x10ReplicateRequest\x12%\n" +
+	"\x04cmds\x18\x01 \x03(\v2\x11.chash.v1.CommandR\x04cmds\"#\n" +
 	"\x11ReplicateResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok2\xe0\x01\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok*-\n" +
+	"\x10CommandOperation\x12\n" +
+	"\n" +
+	"\x06OP_PUT\x10\x00\x12\r\n" +
+	"\tOP_DELETE\x10\x012\xe0\x01\n" +
 	"\fCHashService\x12D\n" +
 	"\tPushBatch\x12\x1a.chash.v1.PushBatchRequest\x1a\x1b.chash.v1.PushBatchResponse\x12D\n" +
 	"\tPullRange\x12\x1a.chash.v1.PullRangeRequest\x1a\x1b.chash.v1.PullRangeResponse\x12D\n" +
@@ -383,31 +443,34 @@ func file_internal_chash_c_proto_rawDescGZIP() []byte {
 	return file_internal_chash_c_proto_rawDescData
 }
 
+var file_internal_chash_c_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_internal_chash_c_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_internal_chash_c_proto_goTypes = []any{
-	(*KVPair)(nil),            // 0: chash.v1.KVPair
-	(*PushBatchRequest)(nil),  // 1: chash.v1.PushBatchRequest
-	(*PushBatchResponse)(nil), // 2: chash.v1.PushBatchResponse
-	(*PullRangeRequest)(nil),  // 3: chash.v1.PullRangeRequest
-	(*PullRangeResponse)(nil), // 4: chash.v1.PullRangeResponse
-	(*ReplicateRequest)(nil),  // 5: chash.v1.ReplicateRequest
-	(*ReplicateResponse)(nil), // 6: chash.v1.ReplicateResponse
+	(CommandOperation)(0),     // 0: chash.v1.CommandOperation
+	(*Command)(nil),           // 1: chash.v1.Command
+	(*PushBatchRequest)(nil),  // 2: chash.v1.PushBatchRequest
+	(*PushBatchResponse)(nil), // 3: chash.v1.PushBatchResponse
+	(*PullRangeRequest)(nil),  // 4: chash.v1.PullRangeRequest
+	(*PullRangeResponse)(nil), // 5: chash.v1.PullRangeResponse
+	(*ReplicateRequest)(nil),  // 6: chash.v1.ReplicateRequest
+	(*ReplicateResponse)(nil), // 7: chash.v1.ReplicateResponse
 }
 var file_internal_chash_c_proto_depIdxs = []int32{
-	0, // 0: chash.v1.PushBatchRequest.kvs:type_name -> chash.v1.KVPair
-	0, // 1: chash.v1.PullRangeResponse.kvs:type_name -> chash.v1.KVPair
-	0, // 2: chash.v1.ReplicateRequest.kvs:type_name -> chash.v1.KVPair
-	1, // 3: chash.v1.CHashService.PushBatch:input_type -> chash.v1.PushBatchRequest
-	3, // 4: chash.v1.CHashService.PullRange:input_type -> chash.v1.PullRangeRequest
-	5, // 5: chash.v1.CHashService.Replicate:input_type -> chash.v1.ReplicateRequest
-	2, // 6: chash.v1.CHashService.PushBatch:output_type -> chash.v1.PushBatchResponse
-	4, // 7: chash.v1.CHashService.PullRange:output_type -> chash.v1.PullRangeResponse
-	6, // 8: chash.v1.CHashService.Replicate:output_type -> chash.v1.ReplicateResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0, // 0: chash.v1.Command.op:type_name -> chash.v1.CommandOperation
+	1, // 1: chash.v1.PushBatchRequest.cmds:type_name -> chash.v1.Command
+	1, // 2: chash.v1.PullRangeResponse.cmds:type_name -> chash.v1.Command
+	1, // 3: chash.v1.ReplicateRequest.cmds:type_name -> chash.v1.Command
+	2, // 4: chash.v1.CHashService.PushBatch:input_type -> chash.v1.PushBatchRequest
+	4, // 5: chash.v1.CHashService.PullRange:input_type -> chash.v1.PullRangeRequest
+	6, // 6: chash.v1.CHashService.Replicate:input_type -> chash.v1.ReplicateRequest
+	3, // 7: chash.v1.CHashService.PushBatch:output_type -> chash.v1.PushBatchResponse
+	5, // 8: chash.v1.CHashService.PullRange:output_type -> chash.v1.PullRangeResponse
+	7, // 9: chash.v1.CHashService.Replicate:output_type -> chash.v1.ReplicateResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_internal_chash_c_proto_init() }
@@ -420,13 +483,14 @@ func file_internal_chash_c_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_chash_c_proto_rawDesc), len(file_internal_chash_c_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_internal_chash_c_proto_goTypes,
 		DependencyIndexes: file_internal_chash_c_proto_depIdxs,
+		EnumInfos:         file_internal_chash_c_proto_enumTypes,
 		MessageInfos:      file_internal_chash_c_proto_msgTypes,
 	}.Build()
 	File_internal_chash_c_proto = out.File

@@ -21,7 +21,7 @@ type GRPCTransport struct {
 }
 
 // 创建 GRPCTransport，连接到所有 peers
-func NewGRPCTransport(peers []configs.ClusterNode) (*GRPCTransport, error) {
+func NewGRPCTransport(peers []configs.ClusterNode) (raft.Transport, error) {
 	t := &GRPCTransport{
 		conns: make(map[string]*grpc.ClientConn),
 		cli:   make(map[string]RaftServiceClient),

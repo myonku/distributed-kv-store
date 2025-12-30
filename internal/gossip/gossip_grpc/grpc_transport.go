@@ -20,7 +20,7 @@ type GRPCTransport struct {
 }
 
 // 返回新的 Gossip GRPCTransport 实例
-func NewGRPCTransport(peers []configs.ClusterNode) (*GRPCTransport, error) {
+func NewGRPCTransport(peers []configs.ClusterNode) (gossip.Transport, error) {
 	t := &GRPCTransport{
 		conns: make(map[string]*grpc.ClientConn),
 		cli:   make(map[string]GossipServiceClient),

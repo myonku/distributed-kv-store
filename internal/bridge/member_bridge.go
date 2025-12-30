@@ -10,7 +10,7 @@ import (
 // 成员节点地址信息
 type MemberAddrInfo struct {
 	clientAddress    string // 对外服务地址
-	chashGRPCAddress string // 节点间通信地址
+	chashGRPCAddress string // 节点间通信地址（内部通信暂时由 transport 维护）
 }
 
 // 持有 gossip 节点和一致性哈希环实例

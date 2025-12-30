@@ -36,7 +36,7 @@ type HashRing struct {
 }
 
 // 返回空的一致性哈希环实例，实际调用时根据 Gossip 成员动态构建
-func NewHashRing(cfg *configs.AppConfig) *HashRing {
+func NewHashRing(cfg *configs.AppConfig) Ring {
 	return &HashRing{
 		VirtualNodes:    cfg.CHash.VirtualNodes,
 		VitrualNodesMap: make(map[string]string),

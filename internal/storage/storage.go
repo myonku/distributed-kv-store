@@ -74,6 +74,54 @@ func (m *memoryStorage) ApplyLog(ctx context.Context, index uint64) error {
 	return nil
 }
 
+func (m *memoryStorage) BatchApply(ctx context.Context, cmds []Command) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	for _, cmd := range cmds {
+		switch cmd.Op {
+		case OpPut:
+			m.data[cmd.Key] = cmd.Value
+		case OpDelete:
+			delete(m.data, cmd.Key)
+		case OpNoop:
+		}
+		m.kvLogs = append(m.kvLogs, cmd)
+	}
+	return nil
+}
+
+func (m *memoryStorage) GetBatch(ctx context.Context, startIndex, endIndex uint64) (*[]Command, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	if startIndex == 0 {
+		startIndex = 1
+	}
+	if startIndex > endIndex || startIndex > uint64(len(m.kvLogs)) {
+		return &[]Command{}, nil
+	}
+	start := int(startIndex - 1)
+	end := min(int(endIndex-1), len(m.kvLogs))
+	if start < 0 {
+		start = 0
+	}
+	if start > end {
+		return &[]Command{}, nil
+	}
+	res := make([]Command, end-start)
+	copy(res, m.kvLogs[start:end])
+	return &res, nil
+}
+
 func (m *memoryStorage) Get(ctx context.Context, key string) (string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

@@ -17,4 +17,5 @@ var (
 	ErrNoVNodeOwner        = err.New("no vnode owner")               // 没有虚拟节点的拥有者
 	ErrPushBatchFailed     = err.New("push batch failed")            // PushBatch 操作失败
 	ErrReplicateFailed     = err.New("replicate failed")             // Replicate 操作失败
+	ErrInvalidCommandOp    = err.New("invalid command operation")    // 无效的命令操作
 )
