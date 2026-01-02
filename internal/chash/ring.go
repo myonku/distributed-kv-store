@@ -27,7 +27,8 @@ func NewNode(id, clientAddress, chashGRPCAddress string, weight int) *Node {
 type HashRing struct {
 	mu sync.RWMutex
 
-	nodes           []Node
+	epoch           uint64            // 当前环的 epoch 版本
+	nodes           []Node            // 物理节点列表
 	VirtualNodes    int               // 每个物理节点对应的虚拟节点数
 	VitrualNodesMap map[string]string // 虚拟节点到物理节点的映射
 
@@ -38,8 +39,11 @@ type HashRing struct {
 // 返回空的一致性哈希环实例，实际调用时根据 Gossip 成员动态构建
 func NewHashRing(cfg *configs.AppConfig) Ring {
 	return &HashRing{
+		epoch:           0,
+		nodes:           make([]Node, 0),
 		VirtualNodes:    cfg.CHash.VirtualNodes,
 		VitrualNodesMap: make(map[string]string),
+		ringKeys:        make([]uint32, 0),
 		vnodeOwners:     make(map[uint32]string),
 	}
 }

@@ -3,9 +3,9 @@ package raft
 import (
 	"context"
 	"distributed-kv-store/configs"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft/raft_store"
-	"distributed-kv-store/internal/storage"
 	"maps"
 	"time"
 )
@@ -40,7 +40,7 @@ func (n *Node) LinearizableRead(ctx context.Context) error {
 }
 
 // 上层写请求的统一入口（只在 Leader 上成功）
-func (n *Node) Propose(ctx context.Context, cmd storage.Command) (ApplyResult, error) {
+func (n *Node) Propose(ctx context.Context, cmd common.Command) (ApplyResult, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -120,7 +120,7 @@ func (n *Node) ProposeConfChange(ctx context.Context, cc configs.ClusterConfigCh
 	entry := raft_store.LogEntry{
 		Index: newIndex,
 		Term:  term,
-		Type:  storage.EntryConfChange,
+		Type:  common.EntryConfChange,
 		Conf:  &cc,
 	}
 	if err := n.logStore.Append([]raft_store.LogEntry{entry}); err != nil {
@@ -171,7 +171,7 @@ func (n *Node) ensureCommittedInCurrentTerm(ctx context.Context) error {
 	}
 
 	// 否则先提交一条 noop，确保当前任期至少有一条已提交日志
-	_, err := n.Propose(ctx, storage.Command{Op: storage.OpNoop})
+	_, err := n.Propose(ctx, common.Command{Op: common.OpNoop})
 	return err
 }
 

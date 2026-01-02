@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"distributed-kv-store/configs"
+	"distributed-kv-store/internal/common"
 )
 
 // 内存实现 + 简单的 index 递增，用于早期开发阶段
@@ -13,29 +14,69 @@ type memoryStorage struct {
 
 	// 业务 KV 状态机数据
 
-	data   map[string]string
-	kvLogs []Command // 业务 KV 的操作日志
+	data      map[string]string
+	kvLogs    []common.Command  // 业务 KV 的操作日志
+	hashIndex map[string]uint32 // 记录每个 key 对应的哈希值，方便按哈希范围查询
 
 	// Raft 相关数据
 
-	raftLogs      []RaftLogEntry // Raft 日志条目
-	raftHardState *RaftHardState // 当前 Raft 硬状态（如未设置则为 nil）
+	raftLogs      []common.RaftLogEntry // Raft 日志条目
+	raftHardState *common.RaftHardState // 当前 Raft 硬状态（如未设置则为 nil）
 }
 
 func NewStorage(cfg configs.StorageConfig) (Storage, error) {
 	return &memoryStorage{
 		data:          make(map[string]string),
-		kvLogs:        make([]Command, 0),
-		raftLogs:      make([]RaftLogEntry, 0),
+		kvLogs:        make([]common.Command, 0),
+		raftLogs:      make([]common.RaftLogEntry, 0),
 		raftHardState: nil,
 	}, nil
+}
+
+func (m *memoryStorage) AppendBatchKV(ctx context.Context, kvs []common.KVPair) (uint64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	select {
+	case <-ctx.Done():
+		return m.LastIndex(), ctx.Err()
+	default:
+	}
+	startIndex := uint64(len(m.kvLogs) + 1)
+	for _, kv := range kvs {
+		m.data[kv.Key] = kv.Value
+		hashVal := common.HashKey(kv.Key)
+		m.hashIndex[kv.Key] = hashVal
+		m.kvLogs = append(m.kvLogs, common.Command{
+			Op:    common.OpPut,
+			Key:   kv.Key,
+			Value: kv.Value,
+		})
+	}
+	return startIndex, nil
+}
+
+func (m *memoryStorage) GetHashRange(ctx context.Context, startHash, endHash uint32) (*[]common.KVPair, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	pairs := make([]common.KVPair, 0)
+	for key, hasVal := range m.hashIndex {
+		if hasVal >= startHash && hasVal < endHash {
+			// 包含在范围内
+			val := m.data[key]
+			pairs = append(pairs, common.KVPair{
+				Key:   key,
+				Value: val,
+			})
+		}
+	}
+	return &pairs, nil
 }
 
 func (m *memoryStorage) Close() error {
 	return nil
 }
 
-func (m *memoryStorage) AppendLog(ctx context.Context, cmd Command) (uint64, error) {
+func (m *memoryStorage) AppendLog(ctx context.Context, cmd common.Command) (uint64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -65,16 +106,19 @@ func (m *memoryStorage) ApplyLog(ctx context.Context, index uint64) error {
 	}
 
 	switch cmd.Op {
-	case OpPut:
+	case common.OpPut:
 		m.data[cmd.Key] = cmd.Value
-	case OpDelete:
+		hashVal := common.HashKey(cmd.Key)
+		m.hashIndex[cmd.Key] = hashVal
+	case common.OpDelete:
 		delete(m.data, cmd.Key)
-	case OpNoop:
+		delete(m.hashIndex, cmd.Key)
+	case common.OpNoop:
 	}
 	return nil
 }
 
-func (m *memoryStorage) BatchApply(ctx context.Context, cmds []Command) error {
+func (m *memoryStorage) BatchApply(ctx context.Context, cmds []common.Command) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	select {
@@ -84,18 +128,21 @@ func (m *memoryStorage) BatchApply(ctx context.Context, cmds []Command) error {
 	}
 	for _, cmd := range cmds {
 		switch cmd.Op {
-		case OpPut:
+		case common.OpPut:
 			m.data[cmd.Key] = cmd.Value
-		case OpDelete:
+			hashVal := common.HashKey(cmd.Key)
+			m.hashIndex[cmd.Key] = hashVal
+		case common.OpDelete:
 			delete(m.data, cmd.Key)
-		case OpNoop:
+			delete(m.hashIndex, cmd.Key)
+		case common.OpNoop:
 		}
 		m.kvLogs = append(m.kvLogs, cmd)
 	}
 	return nil
 }
 
-func (m *memoryStorage) GetBatch(ctx context.Context, startIndex, endIndex uint64) (*[]Command, error) {
+func (m *memoryStorage) GetBatch(ctx context.Context, startIndex, endIndex uint64) (*[]common.Command, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	select {
@@ -107,7 +154,7 @@ func (m *memoryStorage) GetBatch(ctx context.Context, startIndex, endIndex uint6
 		startIndex = 1
 	}
 	if startIndex > endIndex || startIndex > uint64(len(m.kvLogs)) {
-		return &[]Command{}, nil
+		return &[]common.Command{}, nil
 	}
 	start := int(startIndex - 1)
 	end := min(int(endIndex-1), len(m.kvLogs))
@@ -115,9 +162,9 @@ func (m *memoryStorage) GetBatch(ctx context.Context, startIndex, endIndex uint6
 		start = 0
 	}
 	if start > end {
-		return &[]Command{}, nil
+		return &[]common.Command{}, nil
 	}
-	res := make([]Command, end-start)
+	res := make([]common.Command, end-start)
 	copy(res, m.kvLogs[start:end])
 	return &res, nil
 }
@@ -145,9 +192,8 @@ func (m *memoryStorage) LastIndex() uint64 {
 	return uint64(len(m.kvLogs))
 }
 
-// AppendRaftLog 追加一批 Raft 日志 entries。
-// 要求调用方保证 entries 中的 Index 单调递增且与现有日志连续。
-func (m *memoryStorage) AppendRaftLog(ctx context.Context, entries []RaftLogEntry) error {
+// 追加一批 Raft 日志 entries.要求调用方保证 entries 中的 Index 单调递增且与现有日志连续
+func (m *memoryStorage) AppendRaftLog(ctx context.Context, entries []common.RaftLogEntry) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -161,13 +207,13 @@ func (m *memoryStorage) AppendRaftLog(ctx context.Context, entries []RaftLogEntr
 		return nil
 	}
 
-	// 简化：假设 Index 从 1 开始，且不会出现“插入中间”情况。
+	// 假设 Index 从 1 开始，且不会出现“插入中间”情况。
 	m.raftLogs = append(m.raftLogs, entries...)
 	return nil
 }
 
-// RaftLogEntries 返回 [from, to) 区间内的 Raft 日志；若越界则自动截断。
-func (m *memoryStorage) RaftLogEntries(ctx context.Context, from, to uint64) ([]RaftLogEntry, error) {
+// RaftLogEntries 返回 [from, to) 区间内的 Raft 日志；若越界则自动截断
+func (m *memoryStorage) RaftLogEntries(ctx context.Context, from, to uint64) ([]common.RaftLogEntry, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -181,7 +227,7 @@ func (m *memoryStorage) RaftLogEntries(ctx context.Context, from, to uint64) ([]
 		from = 1
 	}
 	if from > to || from > uint64(len(m.raftLogs)) {
-		return []RaftLogEntry{}, nil
+		return []common.RaftLogEntry{}, nil
 	}
 
 	start := int(from - 1)
@@ -190,10 +236,10 @@ func (m *memoryStorage) RaftLogEntries(ctx context.Context, from, to uint64) ([]
 		start = 0
 	}
 	if start > end {
-		return []RaftLogEntry{}, nil
+		return []common.RaftLogEntry{}, nil
 	}
 
-	res := make([]RaftLogEntry, end-start)
+	res := make([]common.RaftLogEntry, end-start)
 	copy(res, m.raftLogs[start:end])
 	return res, nil
 }
@@ -215,7 +261,7 @@ func (m *memoryStorage) RaftLogTerm(ctx context.Context, index uint64) (uint64, 
 	return m.raftLogs[index-1].Term, nil
 }
 
-// RaftLogLastIndex 返回当前 Raft 日志的最大索引。
+// RaftLogLastIndex 返回当前 Raft 日志的最大索引
 func (m *memoryStorage) RaftLogLastIndex(ctx context.Context) (uint64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -229,7 +275,7 @@ func (m *memoryStorage) RaftLogLastIndex(ctx context.Context) (uint64, error) {
 	return uint64(len(m.raftLogs)), nil
 }
 
-// RaftLogTruncateFrom 从 index 起（含）截断 Raft 日志。
+// RaftLogTruncateFrom 从 index 起（含）截断 Raft 日志
 func (m *memoryStorage) RaftLogTruncateFrom(ctx context.Context, index uint64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -248,9 +294,7 @@ func (m *memoryStorage) RaftLogTruncateFrom(ctx context.Context, index uint64) e
 	return nil
 }
 
-// ===== Raft 硬状态相关实现（示例内存版本） =====
-
-func (m *memoryStorage) SaveRaftHardState(ctx context.Context, hs RaftHardState) error {
+func (m *memoryStorage) SaveRaftHardState(ctx context.Context, hs common.RaftHardState) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -265,18 +309,18 @@ func (m *memoryStorage) SaveRaftHardState(ctx context.Context, hs RaftHardState)
 	return nil
 }
 
-func (m *memoryStorage) LoadRaftHardState(ctx context.Context) (RaftHardState, error) {
+func (m *memoryStorage) LoadRaftHardState(ctx context.Context) (common.RaftHardState, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	select {
 	case <-ctx.Done():
-		return RaftHardState{}, ctx.Err()
+		return common.RaftHardState{}, ctx.Err()
 	default:
 	}
 
 	if m.raftHardState == nil {
-		return RaftHardState{}, nil
+		return common.RaftHardState{}, nil
 	}
 	return *m.raftHardState, nil
 }

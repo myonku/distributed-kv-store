@@ -4,8 +4,8 @@ import (
 	"context"
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/chash"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
-	"distributed-kv-store/internal/storage"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -28,31 +28,20 @@ func NewGRPCTransport() chash.Transport {
 }
 
 // PushBatch 实现
-func (t *GRPCTransport) PushBatch(ctx context.Context, to string, cmds *[]storage.Command) error {
+func (t *GRPCTransport) PushBatch(ctx context.Context, to string, kvs *[]common.KVPair) error {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
 	if !ok {
 		return errors.ErrClientNotExist
 	}
-
 	pbReq := &PushBatchRequest{
-		Cmds: make([]*Command, 0, len(*cmds)),
+		Kvs: make([]*KVPair, 0, len(*kvs)),
 	}
-	for _, cmd := range *cmds {
-		var pbOp CommandOperation
-		switch cmd.Op {
-		case storage.OpPut:
-			pbOp = CommandOperation_OP_PUT
-		case storage.OpDelete:
-			pbOp = CommandOperation_OP_DELETE
-		default:
-			return errors.ErrInvalidCommandOp
-		}
-		pbReq.Cmds = append(pbReq.Cmds, &Command{
-			Op:    pbOp,
-			Key:   cmd.Key,
-			Value: cmd.Value,
+	for _, kv := range *kvs {
+		pbReq.Kvs = append(pbReq.Kvs, &KVPair{
+			Key:   kv.Key,
+			Value: kv.Value,
 		})
 	}
 	resp, err := client.PushBatch(ctx, pbReq)
@@ -63,10 +52,11 @@ func (t *GRPCTransport) PushBatch(ctx context.Context, to string, cmds *[]storag
 		return errors.ErrPushBatchFailed
 	}
 	return nil
+
 }
 
 // PullRange 实现
-func (t *GRPCTransport) PullRange(ctx context.Context, to string, startIndex, endIndex uint64) (*[]storage.Command, error) {
+func (t *GRPCTransport) PullRange(ctx context.Context, to string, startHash, endHash uint32) (*[]common.KVPair, error) {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
@@ -74,51 +64,41 @@ func (t *GRPCTransport) PullRange(ctx context.Context, to string, startIndex, en
 		return nil, errors.ErrClientNotExist
 	}
 	pbReq := &PullRangeRequest{
-		StartIndex: startIndex,
-		EndIndex:   endIndex,
+		StartHash: startHash,
+		EndHash:   endHash,
 	}
 	resp, err := client.PullRange(ctx, pbReq)
 	if err != nil {
 		return nil, err
 	}
-	cmds := make([]storage.Command, 0, len(resp.Cmds))
-	for _, pbCmd := range resp.Cmds {
-		var op storage.CommandOperation
-		switch pbCmd.Op {
-		case CommandOperation_OP_PUT:
-			op = storage.OpPut
-		case CommandOperation_OP_DELETE:
-			op = storage.OpDelete
-		default:
-			return nil, errors.ErrInvalidCommandOp
-		}
-		cmds = append(cmds, storage.Command{
-			Op:    op,
-			Key:   pbCmd.Key,
-			Value: pbCmd.Value,
+	kvs := make([]common.KVPair, 0, len(resp.Kvs))
+	for _, pbKV := range resp.Kvs {
+		kvs = append(kvs, common.KVPair{
+			Key:   pbKV.Key,
+			Value: pbKV.Value,
 		})
 	}
-
-	return &cmds, nil
+	return &kvs, nil
 }
 
 // Replicate 实现
-func (t *GRPCTransport) Replicate(ctx context.Context, to string, cmds *[]storage.Command) error {
+func (t *GRPCTransport) Replicate(ctx context.Context, to string, cmds *[]common.Command) error {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
 	if !ok {
 		return errors.ErrClientNotExist
 	}
+
 	pbReq := &ReplicateRequest{
 		Cmds: make([]*Command, 0, len(*cmds)),
 	}
 	for _, cmd := range *cmds {
 		var pbOp CommandOperation
 		switch cmd.Op {
-		case storage.OpPut:
+		case common.OpPut:
 			pbOp = CommandOperation_OP_PUT
-		case storage.OpDelete:
+		case common.OpDelete:
 			pbOp = CommandOperation_OP_DELETE
 		default:
 			return errors.ErrInvalidCommandOp

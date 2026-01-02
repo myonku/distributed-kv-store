@@ -102,6 +102,16 @@ func (n *Node) Snapshot() []Member {
 	return snapshot
 }
 
+// 返回本节点 ID
+func (n *Node) SelfID() string {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	if n == nil || n.self == nil {
+		return ""
+	}
+	return n.self.ID
+}
+
 // 生成本地节点的 Digest 列表
 func (n *Node) makeDigest() []Digest {
 	n.mu.RLock()

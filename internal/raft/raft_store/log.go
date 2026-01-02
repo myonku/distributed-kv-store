@@ -3,6 +3,7 @@ package raft_store
 import (
 	"context"
 	"distributed-kv-store/configs"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/storage"
 )
 
@@ -20,8 +21,8 @@ type RaftLogStore interface {
 type LogEntry struct {
 	Index uint64                       // 日志索引
 	Term  uint64                       // 任期号
-	Type  storage.LogEntryType         // 日志类型
-	Cmd   storage.Command              // Type == EntryNormal 时使用
+	Type  common.LogEntryType          // 日志类型
+	Cmd   common.Command               // Type == EntryNormal 时使用
 	Conf  *configs.ClusterConfigChange // Type == EntryConfChange 时使用
 }
 
@@ -38,10 +39,10 @@ func (r *raftLogStore) Append(entries []LogEntry) error {
 		return nil
 	}
 
-	// 将 raft_store.LogEntry 转为 storage.RaftLogEntry 交给底层存储
-	raftEntries := make([]storage.RaftLogEntry, 0, len(entries))
+	// 将 raft_store.LogEntry 转为 common.RaftLogEntry 交给底层存储
+	raftEntries := make([]common.RaftLogEntry, 0, len(entries))
 	for _, e := range entries {
-		raftEntries = append(raftEntries, storage.RaftLogEntry{
+		raftEntries = append(raftEntries, common.RaftLogEntry{
 			Index: e.Index,
 			Term:  e.Term,
 			Cmd:   e.Cmd,

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft"
 	"distributed-kv-store/internal/storage"
@@ -24,8 +25,8 @@ func (s *RaftKVService) Put(ctx context.Context, key, value string) error {
 		return errors.ErrNotLeader
 	}
 
-	cmd := storage.Command{
-		Op:    storage.OpPut,
+	cmd := common.Command{
+		Op:    common.OpPut,
 		Key:   key,
 		Value: value,
 	}
@@ -39,8 +40,8 @@ func (s *RaftKVService) Delete(ctx context.Context, key string) error {
 		return errors.ErrNotLeader
 	}
 
-	cmd := storage.Command{
-		Op:  storage.OpDelete,
+	cmd := common.Command{
+		Op:  common.OpDelete,
 		Key: key,
 	}
 	_, err := s.node.Propose(ctx, cmd)

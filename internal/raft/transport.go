@@ -20,6 +20,8 @@ type Transport interface {
 	AddPeer(peer configs.ClusterNode, options ...grpc.DialOption) error
 	// 移除某个集群节点的连接（本地）
 	RemovePeer(peerID string) error
+	// 关闭传输层，释放资源
+	Close() error
 }
 
 // AppendEntries RPC

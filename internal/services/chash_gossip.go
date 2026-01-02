@@ -6,7 +6,7 @@ import (
 	"distributed-kv-store/internal/storage"
 )
 
-// 基于Gossip + 一致性哈希模式的分布式 KVService 实现
+// 基于Gossip + 一致性哈希模式的 KVService 实现
 type CHashKVService struct {
 	memberBridge *bridge.MemberBridge // 持有 gossip 节点和一致性哈希环实例
 

@@ -127,16 +127,68 @@ func (x *Command) GetValue() string {
 	return ""
 }
 
+type KVPair struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KVPair) Reset() {
+	*x = KVPair{}
+	mi := &file_internal_chash_c_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KVPair) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KVPair) ProtoMessage() {}
+
+func (x *KVPair) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_chash_c_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KVPair.ProtoReflect.Descriptor instead.
+func (*KVPair) Descriptor() ([]byte, []int) {
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *KVPair) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *KVPair) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
 type PushBatchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cmds          []*Command             `protobuf:"bytes,1,rep,name=cmds,proto3" json:"cmds,omitempty"`
+	Kvs           []*KVPair              `protobuf:"bytes,1,rep,name=kvs,proto3" json:"kvs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PushBatchRequest) Reset() {
 	*x = PushBatchRequest{}
-	mi := &file_internal_chash_c_proto_msgTypes[1]
+	mi := &file_internal_chash_c_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -148,7 +200,7 @@ func (x *PushBatchRequest) String() string {
 func (*PushBatchRequest) ProtoMessage() {}
 
 func (x *PushBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[1]
+	mi := &file_internal_chash_c_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -161,12 +213,12 @@ func (x *PushBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushBatchRequest.ProtoReflect.Descriptor instead.
 func (*PushBatchRequest) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{1}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *PushBatchRequest) GetCmds() []*Command {
+func (x *PushBatchRequest) GetKvs() []*KVPair {
 	if x != nil {
-		return x.Cmds
+		return x.Kvs
 	}
 	return nil
 }
@@ -180,7 +232,7 @@ type PushBatchResponse struct {
 
 func (x *PushBatchResponse) Reset() {
 	*x = PushBatchResponse{}
-	mi := &file_internal_chash_c_proto_msgTypes[2]
+	mi := &file_internal_chash_c_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -192,7 +244,7 @@ func (x *PushBatchResponse) String() string {
 func (*PushBatchResponse) ProtoMessage() {}
 
 func (x *PushBatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[2]
+	mi := &file_internal_chash_c_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -205,7 +257,7 @@ func (x *PushBatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushBatchResponse.ProtoReflect.Descriptor instead.
 func (*PushBatchResponse) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{2}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *PushBatchResponse) GetOk() bool {
@@ -217,15 +269,15 @@ func (x *PushBatchResponse) GetOk() bool {
 
 type PullRangeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	StartIndex    uint64                 `protobuf:"varint,1,opt,name=start_index,json=startIndex,proto3" json:"start_index,omitempty"`
-	EndIndex      uint64                 `protobuf:"varint,2,opt,name=end_index,json=endIndex,proto3" json:"end_index,omitempty"`
+	StartHash     uint32                 `protobuf:"varint,1,opt,name=start_hash,json=startHash,proto3" json:"start_hash,omitempty"`
+	EndHash       uint32                 `protobuf:"varint,2,opt,name=end_hash,json=endHash,proto3" json:"end_hash,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PullRangeRequest) Reset() {
 	*x = PullRangeRequest{}
-	mi := &file_internal_chash_c_proto_msgTypes[3]
+	mi := &file_internal_chash_c_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -237,7 +289,7 @@ func (x *PullRangeRequest) String() string {
 func (*PullRangeRequest) ProtoMessage() {}
 
 func (x *PullRangeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[3]
+	mi := &file_internal_chash_c_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -250,33 +302,33 @@ func (x *PullRangeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullRangeRequest.ProtoReflect.Descriptor instead.
 func (*PullRangeRequest) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{3}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *PullRangeRequest) GetStartIndex() uint64 {
+func (x *PullRangeRequest) GetStartHash() uint32 {
 	if x != nil {
-		return x.StartIndex
+		return x.StartHash
 	}
 	return 0
 }
 
-func (x *PullRangeRequest) GetEndIndex() uint64 {
+func (x *PullRangeRequest) GetEndHash() uint32 {
 	if x != nil {
-		return x.EndIndex
+		return x.EndHash
 	}
 	return 0
 }
 
 type PullRangeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cmds          []*Command             `protobuf:"bytes,1,rep,name=cmds,proto3" json:"cmds,omitempty"`
+	Kvs           []*KVPair              `protobuf:"bytes,1,rep,name=kvs,proto3" json:"kvs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PullRangeResponse) Reset() {
 	*x = PullRangeResponse{}
-	mi := &file_internal_chash_c_proto_msgTypes[4]
+	mi := &file_internal_chash_c_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -288,7 +340,7 @@ func (x *PullRangeResponse) String() string {
 func (*PullRangeResponse) ProtoMessage() {}
 
 func (x *PullRangeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[4]
+	mi := &file_internal_chash_c_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -301,12 +353,12 @@ func (x *PullRangeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullRangeResponse.ProtoReflect.Descriptor instead.
 func (*PullRangeResponse) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{4}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *PullRangeResponse) GetCmds() []*Command {
+func (x *PullRangeResponse) GetKvs() []*KVPair {
 	if x != nil {
-		return x.Cmds
+		return x.Kvs
 	}
 	return nil
 }
@@ -320,7 +372,7 @@ type ReplicateRequest struct {
 
 func (x *ReplicateRequest) Reset() {
 	*x = ReplicateRequest{}
-	mi := &file_internal_chash_c_proto_msgTypes[5]
+	mi := &file_internal_chash_c_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -332,7 +384,7 @@ func (x *ReplicateRequest) String() string {
 func (*ReplicateRequest) ProtoMessage() {}
 
 func (x *ReplicateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[5]
+	mi := &file_internal_chash_c_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -345,7 +397,7 @@ func (x *ReplicateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplicateRequest.ProtoReflect.Descriptor instead.
 func (*ReplicateRequest) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{5}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReplicateRequest) GetCmds() []*Command {
@@ -364,7 +416,7 @@ type ReplicateResponse struct {
 
 func (x *ReplicateResponse) Reset() {
 	*x = ReplicateResponse{}
-	mi := &file_internal_chash_c_proto_msgTypes[6]
+	mi := &file_internal_chash_c_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -376,7 +428,7 @@ func (x *ReplicateResponse) String() string {
 func (*ReplicateResponse) ProtoMessage() {}
 
 func (x *ReplicateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[6]
+	mi := &file_internal_chash_c_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -389,7 +441,7 @@ func (x *ReplicateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplicateResponse.ProtoReflect.Descriptor instead.
 func (*ReplicateResponse) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{6}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ReplicateResponse) GetOk() bool {
@@ -407,17 +459,20 @@ const file_internal_chash_c_proto_rawDesc = "" +
 	"\aCommand\x12*\n" +
 	"\x02op\x18\x01 \x01(\x0e2\x1a.chash.v1.CommandOperationR\x02op\x12\x10\n" +
 	"\x03key\x18\x02 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x03 \x01(\tR\x05value\"9\n" +
-	"\x10PushBatchRequest\x12%\n" +
-	"\x04cmds\x18\x01 \x03(\v2\x11.chash.v1.CommandR\x04cmds\"#\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"0\n" +
+	"\x06KVPair\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"6\n" +
+	"\x10PushBatchRequest\x12\"\n" +
+	"\x03kvs\x18\x01 \x03(\v2\x10.chash.v1.KVPairR\x03kvs\"#\n" +
 	"\x11PushBatchResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok\"P\n" +
-	"\x10PullRangeRequest\x12\x1f\n" +
-	"\vstart_index\x18\x01 \x01(\x04R\n" +
-	"startIndex\x12\x1b\n" +
-	"\tend_index\x18\x02 \x01(\x04R\bendIndex\":\n" +
-	"\x11PullRangeResponse\x12%\n" +
-	"\x04cmds\x18\x01 \x03(\v2\x11.chash.v1.CommandR\x04cmds\"9\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\"L\n" +
+	"\x10PullRangeRequest\x12\x1d\n" +
+	"\n" +
+	"start_hash\x18\x01 \x01(\rR\tstartHash\x12\x19\n" +
+	"\bend_hash\x18\x02 \x01(\rR\aendHash\"7\n" +
+	"\x11PullRangeResponse\x12\"\n" +
+	"\x03kvs\x18\x01 \x03(\v2\x10.chash.v1.KVPairR\x03kvs\"9\n" +
 	"\x10ReplicateRequest\x12%\n" +
 	"\x04cmds\x18\x01 \x03(\v2\x11.chash.v1.CommandR\x04cmds\"#\n" +
 	"\x11ReplicateResponse\x12\x0e\n" +
@@ -444,28 +499,29 @@ func file_internal_chash_c_proto_rawDescGZIP() []byte {
 }
 
 var file_internal_chash_c_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_internal_chash_c_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_internal_chash_c_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_internal_chash_c_proto_goTypes = []any{
 	(CommandOperation)(0),     // 0: chash.v1.CommandOperation
 	(*Command)(nil),           // 1: chash.v1.Command
-	(*PushBatchRequest)(nil),  // 2: chash.v1.PushBatchRequest
-	(*PushBatchResponse)(nil), // 3: chash.v1.PushBatchResponse
-	(*PullRangeRequest)(nil),  // 4: chash.v1.PullRangeRequest
-	(*PullRangeResponse)(nil), // 5: chash.v1.PullRangeResponse
-	(*ReplicateRequest)(nil),  // 6: chash.v1.ReplicateRequest
-	(*ReplicateResponse)(nil), // 7: chash.v1.ReplicateResponse
+	(*KVPair)(nil),            // 2: chash.v1.KVPair
+	(*PushBatchRequest)(nil),  // 3: chash.v1.PushBatchRequest
+	(*PushBatchResponse)(nil), // 4: chash.v1.PushBatchResponse
+	(*PullRangeRequest)(nil),  // 5: chash.v1.PullRangeRequest
+	(*PullRangeResponse)(nil), // 6: chash.v1.PullRangeResponse
+	(*ReplicateRequest)(nil),  // 7: chash.v1.ReplicateRequest
+	(*ReplicateResponse)(nil), // 8: chash.v1.ReplicateResponse
 }
 var file_internal_chash_c_proto_depIdxs = []int32{
 	0, // 0: chash.v1.Command.op:type_name -> chash.v1.CommandOperation
-	1, // 1: chash.v1.PushBatchRequest.cmds:type_name -> chash.v1.Command
-	1, // 2: chash.v1.PullRangeResponse.cmds:type_name -> chash.v1.Command
+	2, // 1: chash.v1.PushBatchRequest.kvs:type_name -> chash.v1.KVPair
+	2, // 2: chash.v1.PullRangeResponse.kvs:type_name -> chash.v1.KVPair
 	1, // 3: chash.v1.ReplicateRequest.cmds:type_name -> chash.v1.Command
-	2, // 4: chash.v1.CHashService.PushBatch:input_type -> chash.v1.PushBatchRequest
-	4, // 5: chash.v1.CHashService.PullRange:input_type -> chash.v1.PullRangeRequest
-	6, // 6: chash.v1.CHashService.Replicate:input_type -> chash.v1.ReplicateRequest
-	3, // 7: chash.v1.CHashService.PushBatch:output_type -> chash.v1.PushBatchResponse
-	5, // 8: chash.v1.CHashService.PullRange:output_type -> chash.v1.PullRangeResponse
-	7, // 9: chash.v1.CHashService.Replicate:output_type -> chash.v1.ReplicateResponse
+	3, // 4: chash.v1.CHashService.PushBatch:input_type -> chash.v1.PushBatchRequest
+	5, // 5: chash.v1.CHashService.PullRange:input_type -> chash.v1.PullRangeRequest
+	7, // 6: chash.v1.CHashService.Replicate:input_type -> chash.v1.ReplicateRequest
+	4, // 7: chash.v1.CHashService.PushBatch:output_type -> chash.v1.PushBatchResponse
+	6, // 8: chash.v1.CHashService.PullRange:output_type -> chash.v1.PullRangeResponse
+	8, // 9: chash.v1.CHashService.Replicate:output_type -> chash.v1.ReplicateResponse
 	7, // [7:10] is the sub-list for method output_type
 	4, // [4:7] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
@@ -484,7 +540,7 @@ func file_internal_chash_c_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_chash_c_proto_rawDesc), len(file_internal_chash_c_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

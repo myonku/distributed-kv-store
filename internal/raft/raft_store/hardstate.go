@@ -2,6 +2,7 @@ package raft_store
 
 import (
 	"context"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/storage"
 )
 
@@ -29,7 +30,7 @@ func NewHardStateStore(st storage.Storage) *hardStateStore {
 }
 
 func (m *hardStateStore) Save(h HardState) error {
-	return m.st.SaveRaftHardState(context.TODO(), storage.RaftHardState{
+	return m.st.SaveRaftHardState(context.TODO(), common.RaftHardState{
 		Term:        h.Term,
 		VotedFor:    h.VotedFor,
 		CommitIndex: h.CommitIndex,

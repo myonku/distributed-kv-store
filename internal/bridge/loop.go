@@ -2,7 +2,7 @@ package bridge
 
 import "distributed-kv-store/internal/gossip"
 
-// 事件循环：消费 gossip event，更新环状态和成员信息
+// 事件循环：消费 gossip event，更新环状态并投递平衡计划
 func (b *MemberBridge) EventLoop() {
 	defer b.wg.Done()
 
@@ -29,10 +29,49 @@ func (b *MemberBridge) EventLoop() {
 				gossip.EventMemberDead,
 				gossip.EventMemberSuspect,
 				gossip.EventMembershipChanged:
-				_ = b.rebuildFromSnapshot(ev.Snapshot)
+				plan, _ := b.rebuildFromSnapshot(ev.Snapshot)
+				// 投递重建计划
+				select {
+				case b.balancePlanCh <- plan:
+				default:
+				}
 			default:
 				// 未知事件：保守起见也重建
-				_ = b.rebuildFromSnapshot(ev.Snapshot)
+				plan, _ := b.rebuildFromSnapshot(ev.Snapshot)
+				// 投递重建计划
+				select {
+				case b.balancePlanCh <- plan:
+				default:
+				}
+			}
+		}
+	}
+}
+
+// 事件循环：消费 Ring 平衡计划并执行数据迁移
+func (b *MemberBridge) BalanceLoop() {
+	defer b.wg.Done()
+
+	if b == nil || b.consHashRing == nil || b.remoteClient == nil {
+		return
+	}
+
+	for {
+		select {
+		case <-b.ctx.Done():
+			return
+		case plan, ok := <-b.balancePlanCh:
+			if !ok {
+				return
+			}
+			// 如果 plan 为空则跳过
+			if len(plan.Moves) == 0 {
+				continue
+			}
+
+			// 执行数据迁移
+			for _, move := range plan.Moves {
+				_ = move
 			}
 		}
 	}

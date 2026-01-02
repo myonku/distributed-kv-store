@@ -2,12 +2,12 @@ package chash_grpc
 
 import (
 	"context"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/storage"
 )
 
-// ChashGRPCServer 实现了 CHashServiceServer 接口，处理数据面内部请求。
-// 内部持有的 storage.Storage 应与业务层同源
+// 实现 CHashServiceServer 接口，处理数据面内部请求。持有的 Storage 应与业务层同源
 type ChashGRPCServer struct {
 	UnimplementedCHashServiceServer
 	st storage.Storage // 底层存储接口
@@ -23,28 +23,18 @@ func (s *ChashGRPCServer) PullRange(ctx context.Context, req *PullRangeRequest) 
 	if s.st == nil {
 		return &PullRangeResponse{}, errors.ErrResourceNotInit
 	}
-	cmds, err := s.st.GetBatch(ctx, req.StartIndex, req.EndIndex)
+	kvs, err := s.st.GetHashRange(ctx, req.StartHash, req.EndHash)
 	if err != nil {
 		return &PullRangeResponse{}, err
 	}
-	respCmds := make([]*Command, 0, len(*cmds))
-	for _, cmd := range *cmds {
-		var pbOp CommandOperation
-		switch cmd.Op {
-		case storage.OpPut:
-			pbOp = CommandOperation_OP_PUT
-		case storage.OpDelete:
-			pbOp = CommandOperation_OP_DELETE
-		default:
-			return &PullRangeResponse{}, errors.ErrInvalidCommandOp
-		}
-		respCmds = append(respCmds, &Command{
-			Op:    pbOp,
-			Key:   cmd.Key,
-			Value: cmd.Value,
+	respKVs := make([]*KVPair, 0, len(*kvs))
+	for _, kv := range *kvs {
+		respKVs = append(respKVs, &KVPair{
+			Key:   kv.Key,
+			Value: kv.Value,
 		})
 	}
-	return &PullRangeResponse{Cmds: respCmds}, nil
+	return &PullRangeResponse{Kvs: respKVs}, nil
 }
 
 // 处理 PushBatch RPC 调用
@@ -52,25 +42,15 @@ func (s *ChashGRPCServer) PushBatch(ctx context.Context, req *PushBatchRequest) 
 	if s.st == nil {
 		return &PushBatchResponse{Ok: false}, errors.ErrResourceNotInit
 	}
-	cmds := make([]storage.Command, 0, len(req.Cmds))
-	for _, pbCmd := range req.Cmds {
-		var op storage.CommandOperation
-		switch pbCmd.Op {
-		case CommandOperation_OP_PUT:
-			op = storage.OpPut
-		case CommandOperation_OP_DELETE:
-			op = storage.OpDelete
-		default:
-			return &PushBatchResponse{Ok: false}, errors.ErrInvalidCommandOp
-		}
-		cmds = append(cmds, storage.Command{
-			Op:    op,
-			Key:   pbCmd.Key,
-			Value: pbCmd.Value,
+	kvs := make([]common.KVPair, 0, len(req.Kvs))
+	for _, pbKV := range req.Kvs {
+		kvs = append(kvs, common.KVPair{
+			Key:   pbKV.Key,
+			Value: pbKV.Value,
 		})
 	}
-	// 批量应用命令
-	err := s.st.BatchApply(ctx, cmds)
+	// 批量写入底层存储并添加日志
+	_, err := s.st.AppendBatchKV(ctx, kvs)
 	if err != nil {
 		return &PushBatchResponse{Ok: false}, err
 	}
@@ -79,27 +59,27 @@ func (s *ChashGRPCServer) PushBatch(ctx context.Context, req *PushBatchRequest) 
 
 // 处理 Replicate RPC 调用
 func (s *ChashGRPCServer) Replicate(ctx context.Context, req *ReplicateRequest) (*ReplicateResponse, error) {
-	// 内部实现暂时与 PushBatch 相同
 	if s.st == nil {
 		return &ReplicateResponse{Ok: false}, errors.ErrResourceNotInit
 	}
-	cmds := make([]storage.Command, 0, len(req.Cmds))
+	cmds := make([]common.Command, 0, len(req.Cmds))
 	for _, pbCmd := range req.Cmds {
-		var op storage.CommandOperation
+		var op common.CommandOperation
 		switch pbCmd.Op {
 		case CommandOperation_OP_PUT:
-			op = storage.OpPut
+			op = common.OpPut
 		case CommandOperation_OP_DELETE:
-			op = storage.OpDelete
+			op = common.OpDelete
 		default:
 			return &ReplicateResponse{Ok: false}, errors.ErrInvalidCommandOp
 		}
-		cmds = append(cmds, storage.Command{
+		cmds = append(cmds, common.Command{
 			Op:    op,
 			Key:   pbCmd.Key,
 			Value: pbCmd.Value,
 		})
 	}
+	// 批量应用到底层状态机
 	err := s.st.BatchApply(ctx, cmds)
 	if err != nil {
 		return &ReplicateResponse{Ok: false}, err

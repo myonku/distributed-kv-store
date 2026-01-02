@@ -3,8 +3,8 @@ package raft
 import (
 	"context"
 	"distributed-kv-store/configs"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/raft/raft_store"
-	"distributed-kv-store/internal/storage"
 	"maps"
 	"math/rand"
 	"time"
@@ -376,11 +376,11 @@ func (n *Node) runApplyLoop() {
 // 内部调用：实际执行 Apply
 func (n *Node) applyEntry(entry raft_store.LogEntry) {
 	switch entry.Type {
-	case storage.EntryConfChange:
+	case common.EntryConfChange:
 		err := n.applyConfChange(entry.Conf)
 		n.notifyApplyResult(entry, err)
 
-	case storage.EntryNormal:
+	case common.EntryNormal:
 		var err error
 		if n.sm != nil {
 			err = n.sm.Apply(entry.Index, entry.Cmd)

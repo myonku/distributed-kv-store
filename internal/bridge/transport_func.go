@@ -2,8 +2,8 @@ package bridge
 
 import (
 	"context"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
-	"distributed-kv-store/internal/storage"
 )
 
 // 根据 key 查询负责节点 ID
@@ -94,8 +94,8 @@ func (b *MemberBridge) ForwardDelete(ctx context.Context, nodeID, key string) er
 
 // region 内部通信方法
 
-// 内部通信：向目标节点推送一批 Command
-func (b *MemberBridge) PushBatch(ctx context.Context, nodeID string, cmds *[]storage.Command) error {
+// 内部通信：向目标节点推送一批 KVPair 数据
+func (b *MemberBridge) PushBatch(ctx context.Context, nodeID string, kvs *[]common.KVPair) error {
 	if b == nil || b.transport == nil {
 		return errors.ErrResourceNotInit
 	}
@@ -103,11 +103,11 @@ func (b *MemberBridge) PushBatch(ctx context.Context, nodeID string, cmds *[]sto
 	if !ok {
 		return errors.ErrResourceNotInit
 	}
-	return b.transport.PushBatch(ctx, addr, cmds)
+	return b.transport.PushBatch(ctx, addr, kvs)
 }
 
-// 内部通信：从目标节点拉取日志索引 [startIndex, endIndex) 的 Command 列表
-func (b *MemberBridge) PullRange(ctx context.Context, nodeID string, startIndex, endIndex uint64) (*[]storage.Command, error) {
+// 内部通信：从目标节点拉取 Key 哈希索引 [startHash, endHash) 的 KVPair 列表
+func (b *MemberBridge) PullRange(ctx context.Context, nodeID string, startHash, endHash uint32) (*[]common.KVPair, error) {
 	if b == nil || b.transport == nil {
 		return nil, errors.ErrResourceNotInit
 	}
@@ -115,11 +115,11 @@ func (b *MemberBridge) PullRange(ctx context.Context, nodeID string, startIndex,
 	if !ok {
 		return nil, errors.ErrResourceNotInit
 	}
-	return b.transport.PullRange(ctx, addr, startIndex, endIndex)
+	return b.transport.PullRange(ctx, addr, startHash, endHash)
 }
 
 // 内部通信：向目标节点复制一批 Command（语义上可用于副本写/反熵）
-func (b *MemberBridge) Replicate(ctx context.Context, nodeID string, cmds *[]storage.Command) error {
+func (b *MemberBridge) Replicate(ctx context.Context, nodeID string, cmds *[]common.Command) error {
 	if b == nil || b.transport == nil {
 		return errors.ErrResourceNotInit
 	}

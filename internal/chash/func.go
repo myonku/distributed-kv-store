@@ -1,17 +1,13 @@
 package chash
 
 import (
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"fmt"
-	"hash/crc32"
 	"slices"
 	"sort"
 	"strconv"
 )
-
-func hashKey(s string) uint32 {
-	return crc32.ChecksumIEEE([]byte(s))
-}
 
 // 获取给定键对应的节点 ID（顺时针最近的虚拟节点所属物理节点）
 func (r *HashRing) GetNode(key string) (nodeID string, ok bool, err error) {
@@ -22,7 +18,7 @@ func (r *HashRing) GetNode(key string) (nodeID string, ok bool, err error) {
 		return "", false, nil
 	}
 
-	h := hashKey(key)
+	h := common.HashKey(key)
 	idx := sort.Search(len(r.ringKeys), func(i int) bool {
 		return r.ringKeys[i] >= h
 	})
@@ -45,7 +41,7 @@ func (r *HashRing) GetNodes(key string) (nodeIDs []string, err error) {
 		return nil, nil
 	}
 
-	h := hashKey(key)
+	h := common.HashKey(key)
 	idx := sort.Search(len(r.ringKeys), func(i int) bool {
 		return r.ringKeys[i] >= h
 	})
@@ -66,20 +62,6 @@ func (r *HashRing) GetNodes(key string) (nodeIDs []string, err error) {
 		idx++
 	}
 	return nodeIDs, nil
-}
-
-// 添加节点并重建环
-func (r *HashRing) AddNode(node Node) error {
-	// 可能涉及数据迁移，留待后续实现
-	// 节点间通信需要外部调用 Transport 层完成
-	return nil
-}
-
-// 移除节点并重建环
-func (r *HashRing) RemoveNode(nodeID string) error {
-	// 可能涉及数据迁移，留待后续实现
-	// 节点间通信需要外部调用 Transport 层完成
-	return nil
 }
 
 // 全量重建环
@@ -107,7 +89,7 @@ func (r *HashRing) Rebuild(nodes []Node) error {
 		for i := range replicas {
 			// 用 nodeID + replicaIndex 生成虚拟节点 key
 			vkey := fmt.Sprintf("%s#%d", n.id, i)
-			h := hashKey(vkey)
+			h := common.HashKey(vkey)
 			r.vnodeOwners[h] = n.id
 			r.VitrualNodesMap[strconv.FormatUint(uint64(h), 10)] = n.id
 			r.ringKeys = append(r.ringKeys, h)

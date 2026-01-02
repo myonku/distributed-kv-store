@@ -23,11 +23,12 @@ type MemberBridge struct {
 	transport    chash.Transport    // 内部通信
 	remoteClient chash.RemoteClient // 远程客户端，用于请求转发
 
-	mu      sync.Mutex
-	ctx     context.Context
-	cancel  context.CancelFunc
-	wg      sync.WaitGroup
-	running bool
+	balancePlanCh chan chash.RebalancePlan // Ring平衡计划通道
+	mu            sync.Mutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	wg            sync.WaitGroup
+	running       bool
 }
 
 // 创建新的 MemberBridge 实例
@@ -40,13 +41,14 @@ func NewMemberBridge(
 	// gossip 节点和 ring 需要在外部组装
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MemberBridge{
-		gossipNode:   gossipNode,
-		consHashRing: ring,
-		ctx:          ctx,
-		cancel:       cancel,
-		transport:    transport,
-		remoteClient: remoteClient,
-		memberAddrs:  &sync.Map{},
+		gossipNode:    gossipNode,
+		consHashRing:  ring,
+		ctx:           ctx,
+		cancel:        cancel,
+		transport:     transport,
+		remoteClient:  remoteClient,
+		memberAddrs:   &sync.Map{},
+		balancePlanCh: make(chan chash.RebalancePlan, 10),
 	}
 }
 
@@ -66,7 +68,7 @@ func (b *MemberBridge) Start() {
 	b.mu.Unlock()
 
 	// 启动即构建一次 ring，保证有初始路由视图
-	_ = b.rebuildFromSnapshot(b.gossipNode.Snapshot())
+	_, _ = b.rebuildFromSnapshot(b.gossipNode.Snapshot())
 
 	b.wg.Add(1)
 

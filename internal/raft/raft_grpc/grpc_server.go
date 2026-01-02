@@ -3,10 +3,10 @@ package raft_grpc
 import (
 	"context"
 	"distributed-kv-store/configs"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft"
 	"distributed-kv-store/internal/raft/raft_store"
-	"distributed-kv-store/internal/storage"
 	"encoding/json"
 	"fmt"
 )
@@ -34,7 +34,7 @@ func (s *RaftGRPCServer) AppendEntries(ctx context.Context, req *AppendEntriesRe
 	}
 
 	for _, e := range req.Entries {
-		entryType := storage.LogEntryType(e.Type)
+		entryType := common.LogEntryType(e.Type)
 		internalEntry := raft_store.LogEntry{
 			Index: e.Index,
 			Term:  e.Term,
@@ -42,16 +42,16 @@ func (s *RaftGRPCServer) AppendEntries(ctx context.Context, req *AppendEntriesRe
 		}
 
 		switch entryType {
-		case storage.EntryNormal:
+		case common.EntryNormal:
 			if len(e.CmdData) > 0 {
-				var cmd storage.Command
+				var cmd common.Command
 				if err := json.Unmarshal(e.CmdData, &cmd); err != nil {
 					return nil, fmt.Errorf("unmarshal command: %w", err)
 				}
 				internalEntry.Cmd = cmd
 			}
 
-		case storage.EntryConfChange:
+		case common.EntryConfChange:
 			if len(e.Conf) == 0 {
 				return nil, fmt.Errorf("missing conf for conf-change entry (index=%d)", e.Index)
 			}
