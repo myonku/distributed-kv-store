@@ -7,3 +7,9 @@ type Logger interface {
 	Warnf(format string, args ...any)
 	Errorf(format string, args ...any)
 }
+
+// 后台任务的基本接口
+type BackgroundTask interface {
+	Start() error
+	Stop() error
+}

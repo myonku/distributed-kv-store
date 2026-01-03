@@ -105,5 +105,6 @@ func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) (chash.Reba
 	if err == nil {
 		return plan, nil
 	}
+
 	return chash.RebalancePlan{}, err
 }

@@ -15,6 +15,7 @@ var (
 	ErrNoAvailablePeer     = err.New("no available peer")            // 没有可用的 peer
 	ErrInvalidArgument     = err.New("invalid argument")             // 无效的参数
 	ErrNoVNodeOwner        = err.New("no vnode owner")               // 没有虚拟节点的拥有者
+	ErrNoFoundNewOwner     = err.New("no found new owner")           // 未找到新的拥有者
 	ErrPushBatchFailed     = err.New("push batch failed")            // PushBatch 操作失败
 	ErrReplicateFailed     = err.New("replicate failed")             // Replicate 操作失败
 	ErrInvalidCommandOp    = err.New("invalid command operation")    // 无效的命令操作

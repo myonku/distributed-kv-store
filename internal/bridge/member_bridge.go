@@ -3,7 +3,9 @@ package bridge
 import (
 	"context"
 	"distributed-kv-store/internal/chash"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/gossip"
+	"distributed-kv-store/internal/storage"
 	"sync"
 )
 
@@ -20,15 +22,17 @@ type MemberBridge struct {
 
 	memberAddrs *sync.Map // 节点ID->地址信息映射
 
-	transport    chash.Transport    // 内部通信
-	remoteClient chash.RemoteClient // 远程客户端，用于请求转发
+	transport    chash.Transport     // 内部通信
+	remoteClient common.RemoteClient // 远程客户端，用于请求转发
+	st           storage.Storage     // 用于支持数据迁移及记录持久化
 
-	balancePlanCh chan chash.RebalancePlan // Ring平衡计划通道
-	mu            sync.Mutex
-	ctx           context.Context
-	cancel        context.CancelFunc
-	wg            sync.WaitGroup
-	running       bool
+	balancePlanCh    chan chash.RebalancePlan // Ring平衡计划通道
+	lastAppliedEpoch uint64                   // 上次应用的 Ring 版本
+	mu               sync.Mutex
+	ctx              context.Context
+	cancel           context.CancelFunc
+	wg               sync.WaitGroup
+	running          bool
 }
 
 // 创建新的 MemberBridge 实例
@@ -36,19 +40,23 @@ func NewMemberBridge(
 	gossipNode *gossip.Node,
 	ring chash.Ring,
 	transport chash.Transport,
-	remoteClient chash.RemoteClient) *MemberBridge {
+	remoteClient common.RemoteClient,
+	st storage.Storage,
+) *MemberBridge {
 
 	// gossip 节点和 ring 需要在外部组装
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MemberBridge{
-		gossipNode:    gossipNode,
-		consHashRing:  ring,
-		ctx:           ctx,
-		cancel:        cancel,
-		transport:     transport,
-		remoteClient:  remoteClient,
-		memberAddrs:   &sync.Map{},
-		balancePlanCh: make(chan chash.RebalancePlan, 10),
+		gossipNode:       gossipNode,
+		consHashRing:     ring,
+		ctx:              ctx,
+		cancel:           cancel,
+		transport:        transport,
+		remoteClient:     remoteClient,
+		memberAddrs:      &sync.Map{},
+		st:               st,
+		balancePlanCh:    make(chan chash.RebalancePlan, 10),
+		lastAppliedEpoch: ring.Epoch(),
 	}
 }
 
@@ -70,9 +78,10 @@ func (b *MemberBridge) Start() {
 	// 启动即构建一次 ring，保证有初始路由视图
 	_, _ = b.rebuildFromSnapshot(b.gossipNode.Snapshot())
 
-	b.wg.Add(1)
+	b.wg.Add(2)
 
-	go b.EventLoop()
+	go b.runEventLoop()
+	go b.runBalanceLoop()
 }
 
 // 停止桥接器

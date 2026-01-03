@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"sync"
+	"time"
 
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/common"
@@ -18,6 +19,9 @@ type memoryStorage struct {
 	kvLogs    []common.Command  // 业务 KV 的操作日志
 	hashIndex map[string]uint32 // 记录每个 key 对应的哈希值，方便按哈希范围查询
 
+	// moveRangeRecords 用于迁移去重记录，避免与业务 KV 命名空间混用。
+	moveRangeRecords map[uint32]string
+
 	// Raft 相关数据
 
 	raftLogs      []common.RaftLogEntry // Raft 日志条目
@@ -26,14 +30,16 @@ type memoryStorage struct {
 
 func NewStorage(cfg configs.StorageConfig) (Storage, error) {
 	return &memoryStorage{
-		data:          make(map[string]string),
-		kvLogs:        make([]common.Command, 0),
-		raftLogs:      make([]common.RaftLogEntry, 0),
-		raftHardState: nil,
+		data:             make(map[string]string),
+		kvLogs:           make([]common.Command, 0),
+		hashIndex:        make(map[string]uint32),
+		moveRangeRecords: make(map[uint32]string),
+		raftLogs:         make([]common.RaftLogEntry, 0),
+		raftHardState:    nil,
 	}, nil
 }
 
-func (m *memoryStorage) AppendBatchKV(ctx context.Context, kvs []common.KVPair) (uint64, error) {
+func (m *memoryStorage) AppendBatchKV(ctx context.Context, kvs *[]common.KVPair) (uint64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	select {
@@ -42,7 +48,7 @@ func (m *memoryStorage) AppendBatchKV(ctx context.Context, kvs []common.KVPair) 
 	default:
 	}
 	startIndex := uint64(len(m.kvLogs) + 1)
-	for _, kv := range kvs {
+	for _, kv := range *kvs {
 		m.data[kv.Key] = kv.Value
 		hashVal := common.HashKey(kv.Key)
 		m.hashIndex[kv.Key] = hashVal
@@ -60,7 +66,16 @@ func (m *memoryStorage) GetHashRange(ctx context.Context, startHash, endHash uin
 	defer m.mu.RUnlock()
 	pairs := make([]common.KVPair, 0)
 	for key, hasVal := range m.hashIndex {
-		if hasVal >= startHash && hasVal < endHash {
+		inRange := false
+		if startHash == endHash {
+			inRange = false
+		} else if startHash < endHash {
+			inRange = hasVal >= startHash && hasVal < endHash
+		} else {
+			// wrap-around: [startHash, 2^32) U [0, endHash)
+			inRange = hasVal >= startHash || hasVal < endHash
+		}
+		if inRange {
 			// 包含在范围内
 			val := m.data[key]
 			pairs = append(pairs, common.KVPair{
@@ -70,6 +85,31 @@ func (m *memoryStorage) GetHashRange(ctx context.Context, startHash, endHash uin
 		}
 	}
 	return &pairs, nil
+}
+
+func (m *memoryStorage) GetMoveRangeRecord(ctx context.Context, moveID uint32) (bool, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	select {
+	case <-ctx.Done():
+		return false, ctx.Err()
+	default:
+	}
+	_, exists := m.moveRangeRecords[moveID]
+	return exists, nil
+}
+
+func (m *memoryStorage) SaveMoveRangeRecord(ctx context.Context, moveID uint32) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	// 使用当前时间戳作为记录内容，方便后续过期清理
+	m.moveRangeRecords[moveID] = time.Now().Format(time.RFC3339)
+	return nil
 }
 
 func (m *memoryStorage) Close() error {
@@ -118,7 +158,7 @@ func (m *memoryStorage) ApplyLog(ctx context.Context, index uint64) error {
 	return nil
 }
 
-func (m *memoryStorage) BatchApply(ctx context.Context, cmds []common.Command) error {
+func (m *memoryStorage) BatchApply(ctx context.Context, cmds *[]common.Command) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	select {
@@ -126,7 +166,7 @@ func (m *memoryStorage) BatchApply(ctx context.Context, cmds []common.Command) e
 		return ctx.Err()
 	default:
 	}
-	for _, cmd := range cmds {
+	for _, cmd := range *cmds {
 		switch cmd.Op {
 		case common.OpPut:
 			m.data[cmd.Key] = cmd.Value

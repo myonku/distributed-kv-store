@@ -3,10 +3,7 @@ package chash
 import (
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
-	"fmt"
-	"slices"
 	"sort"
-	"strconv"
 )
 
 // 获取给定键对应的节点 ID（顺时针最近的虚拟节点所属物理节点）
@@ -37,65 +34,45 @@ func (r *HashRing) GetNode(key string) (nodeID string, ok bool, err error) {
 func (r *HashRing) GetNodes(key string) (nodeIDs []string, err error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	if len(r.ringKeys) == 0 {
-		return nil, nil
+	replicationFactor := r.replicationFactor
+	if replicationFactor <= 0 {
+		replicationFactor = 1
 	}
-
+	if replicationFactor > len(r.nodes) {
+		replicationFactor = len(r.nodes)
+	}
+	if len(r.ringKeys) == 0 {
+		return []string{}, nil
+	}
 	h := common.HashKey(key)
 	idx := sort.Search(len(r.ringKeys), func(i int) bool {
 		return r.ringKeys[i] >= h
 	})
-	visited := make(map[string]struct{})
-	for len(visited) < len(r.nodes) {
+	seen := make(map[string]struct{})
+	// 收集不同的节点 ID，直到达到副本因子要求；最多扫描一圈 keys，避免死循环。
+	steps := 0
+	for len(seen) < replicationFactor && steps < len(r.ringKeys) {
 		if idx == len(r.ringKeys) {
 			idx = 0 // 环绕回到第一个节点
 		}
 		owner, exists := r.vnodeOwners[r.ringKeys[idx]]
 		if !exists {
+			// 理论上不会发生
 			return nil, errors.ErrNoVNodeOwner
 		}
-		// 避免重复添加相同节点
-		if _, seen := visited[owner]; !seen {
-			visited[owner] = struct{}{}
+		if _, ok := seen[owner]; !ok {
+			seen[owner] = struct{}{}
 			nodeIDs = append(nodeIDs, owner)
 		}
 		idx++
+		steps++
 	}
 	return nodeIDs, nil
 }
 
-// 全量重建环
-func (r *HashRing) Rebuild(nodes []Node) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// reset
-	r.nodes = append([]Node(nil), nodes...)
-	r.ringKeys = r.ringKeys[:0]
-	r.vnodeOwners = make(map[uint32]string)
-	r.VitrualNodesMap = make(map[string]string)
-
-	virtualNodes := r.VirtualNodes
-	if virtualNodes <= 0 {
-		virtualNodes = 1
-	}
-
-	for _, n := range nodes {
-		weight := n.weight
-		if weight <= 0 {
-			weight = 1
-		}
-		replicas := virtualNodes * weight // 根据节点权重调整虚拟节点数
-		for i := range replicas {
-			// 用 nodeID + replicaIndex 生成虚拟节点 key
-			vkey := fmt.Sprintf("%s#%d", n.id, i)
-			h := common.HashKey(vkey)
-			r.vnodeOwners[h] = n.id
-			r.VitrualNodesMap[strconv.FormatUint(uint64(h), 10)] = n.id
-			r.ringKeys = append(r.ringKeys, h)
-		}
-	}
-
-	slices.Sort(r.ringKeys)
-	return nil
+// 获取当前环的 epoch 版本
+func (r *HashRing) Epoch() uint64 {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.epoch
 }

@@ -28,7 +28,7 @@ func NewGRPCTransport() chash.Transport {
 }
 
 // PushBatch 实现
-func (t *GRPCTransport) PushBatch(ctx context.Context, to string, kvs *[]common.KVPair) error {
+func (t *GRPCTransport) PushBatch(ctx context.Context, moveID uint32, to string, kvs *[]common.KVPair) error {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
@@ -36,7 +36,8 @@ func (t *GRPCTransport) PushBatch(ctx context.Context, to string, kvs *[]common.
 		return errors.ErrClientNotExist
 	}
 	pbReq := &PushBatchRequest{
-		Kvs: make([]*KVPair, 0, len(*kvs)),
+		MoveId: moveID,
+		Kvs:    make([]*KVPair, 0, len(*kvs)),
 	}
 	for _, kv := range *kvs {
 		pbReq.Kvs = append(pbReq.Kvs, &KVPair{
@@ -56,7 +57,7 @@ func (t *GRPCTransport) PushBatch(ctx context.Context, to string, kvs *[]common.
 }
 
 // PullRange 实现
-func (t *GRPCTransport) PullRange(ctx context.Context, to string, startHash, endHash uint32) (*[]common.KVPair, error) {
+func (t *GRPCTransport) PullRange(ctx context.Context, moveID uint32, to string, startHash, endHash uint32) (*[]common.KVPair, error) {
 	t.mu.RLock()
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
@@ -64,6 +65,7 @@ func (t *GRPCTransport) PullRange(ctx context.Context, to string, startHash, end
 		return nil, errors.ErrClientNotExist
 	}
 	pbReq := &PullRangeRequest{
+		MoveId:    moveID,
 		StartHash: startHash,
 		EndHash:   endHash,
 	}

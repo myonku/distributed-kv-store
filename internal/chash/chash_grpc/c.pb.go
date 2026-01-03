@@ -181,7 +181,8 @@ func (x *KVPair) GetValue() string {
 
 type PushBatchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kvs           []*KVPair              `protobuf:"bytes,1,rep,name=kvs,proto3" json:"kvs,omitempty"`
+	MoveId        uint32                 `protobuf:"varint,1,opt,name=move_id,json=moveId,proto3" json:"move_id,omitempty"`
+	Kvs           []*KVPair              `protobuf:"bytes,2,rep,name=kvs,proto3" json:"kvs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -214,6 +215,13 @@ func (x *PushBatchRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use PushBatchRequest.ProtoReflect.Descriptor instead.
 func (*PushBatchRequest) Descriptor() ([]byte, []int) {
 	return file_internal_chash_c_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PushBatchRequest) GetMoveId() uint32 {
+	if x != nil {
+		return x.MoveId
+	}
+	return 0
 }
 
 func (x *PushBatchRequest) GetKvs() []*KVPair {
@@ -269,8 +277,9 @@ func (x *PushBatchResponse) GetOk() bool {
 
 type PullRangeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	StartHash     uint32                 `protobuf:"varint,1,opt,name=start_hash,json=startHash,proto3" json:"start_hash,omitempty"`
-	EndHash       uint32                 `protobuf:"varint,2,opt,name=end_hash,json=endHash,proto3" json:"end_hash,omitempty"`
+	MoveId        uint32                 `protobuf:"varint,1,opt,name=move_id,json=moveId,proto3" json:"move_id,omitempty"`
+	StartHash     uint32                 `protobuf:"varint,2,opt,name=start_hash,json=startHash,proto3" json:"start_hash,omitempty"`
+	EndHash       uint32                 `protobuf:"varint,3,opt,name=end_hash,json=endHash,proto3" json:"end_hash,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -303,6 +312,13 @@ func (x *PullRangeRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use PullRangeRequest.ProtoReflect.Descriptor instead.
 func (*PullRangeRequest) Descriptor() ([]byte, []int) {
 	return file_internal_chash_c_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PullRangeRequest) GetMoveId() uint32 {
+	if x != nil {
+		return x.MoveId
+	}
+	return 0
 }
 
 func (x *PullRangeRequest) GetStartHash() uint32 {
@@ -462,15 +478,17 @@ const file_internal_chash_c_proto_rawDesc = "" +
 	"\x05value\x18\x03 \x01(\tR\x05value\"0\n" +
 	"\x06KVPair\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"6\n" +
-	"\x10PushBatchRequest\x12\"\n" +
-	"\x03kvs\x18\x01 \x03(\v2\x10.chash.v1.KVPairR\x03kvs\"#\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"O\n" +
+	"\x10PushBatchRequest\x12\x17\n" +
+	"\amove_id\x18\x01 \x01(\rR\x06moveId\x12\"\n" +
+	"\x03kvs\x18\x02 \x03(\v2\x10.chash.v1.KVPairR\x03kvs\"#\n" +
 	"\x11PushBatchResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok\"L\n" +
-	"\x10PullRangeRequest\x12\x1d\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\"e\n" +
+	"\x10PullRangeRequest\x12\x17\n" +
+	"\amove_id\x18\x01 \x01(\rR\x06moveId\x12\x1d\n" +
 	"\n" +
-	"start_hash\x18\x01 \x01(\rR\tstartHash\x12\x19\n" +
-	"\bend_hash\x18\x02 \x01(\rR\aendHash\"7\n" +
+	"start_hash\x18\x02 \x01(\rR\tstartHash\x12\x19\n" +
+	"\bend_hash\x18\x03 \x01(\rR\aendHash\"7\n" +
 	"\x11PullRangeResponse\x12\"\n" +
 	"\x03kvs\x18\x01 \x03(\v2\x10.chash.v1.KVPairR\x03kvs\"9\n" +
 	"\x10ReplicateRequest\x12%\n" +

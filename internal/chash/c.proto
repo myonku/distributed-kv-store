@@ -21,7 +21,8 @@ message KVPair {
 }
 
 message PushBatchRequest {
-    repeated KVPair kvs = 1;
+    uint32 move_id = 1;
+    repeated KVPair kvs = 2;
 }
 
 message PushBatchResponse {
@@ -29,8 +30,9 @@ message PushBatchResponse {
 }
 
 message PullRangeRequest {
-    uint32 start_hash = 1;
-    uint32 end_hash = 2;
+    uint32 move_id = 1;
+    uint32 start_hash = 2;
+    uint32 end_hash = 3;
 }
 
 message PullRangeResponse {

@@ -1,9 +1,16 @@
-package chash
+package common
 
 import (
 	"context"
 	"net/http"
 )
+
+// 用于业务转发，调用目标节点的对外 HTTP 接口
+type RemoteClient interface {
+	Put(ctx context.Context, targetAddr, key, value string) error
+	Get(ctx context.Context, targetAddr, key string) (string, error)
+	Delete(ctx context.Context, targetAddr, key string) error
+}
 
 // RemoteClient 实现远程请求转发客户端接口
 type ChashRemoteClient struct {

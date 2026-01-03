@@ -23,6 +23,7 @@ func (s *ChashGRPCServer) PullRange(ctx context.Context, req *PullRangeRequest) 
 	if s.st == nil {
 		return &PullRangeResponse{}, errors.ErrResourceNotInit
 	}
+	// PullRange 是“源节点读数据”的操作：为了支持失败重试/重复拉取，这里不做 moveID 去重
 	kvs, err := s.st.GetHashRange(ctx, req.StartHash, req.EndHash)
 	if err != nil {
 		return &PullRangeResponse{}, err
@@ -42,6 +43,13 @@ func (s *ChashGRPCServer) PushBatch(ctx context.Context, req *PushBatchRequest) 
 	if s.st == nil {
 		return &PushBatchResponse{Ok: false}, errors.ErrResourceNotInit
 	}
+	// moveID 已存在则表示该迁移已完成，直接返回 OK（幂等）
+	if exists, err := s.st.GetMoveRangeRecord(ctx, req.MoveId); err != nil {
+		return &PushBatchResponse{Ok: false}, err
+	} else if exists {
+		return &PushBatchResponse{Ok: true}, nil
+	}
+
 	kvs := make([]common.KVPair, 0, len(req.Kvs))
 	for _, pbKV := range req.Kvs {
 		kvs = append(kvs, common.KVPair{
@@ -50,8 +58,12 @@ func (s *ChashGRPCServer) PushBatch(ctx context.Context, req *PushBatchRequest) 
 		})
 	}
 	// 批量写入底层存储并添加日志
-	_, err := s.st.AppendBatchKV(ctx, kvs)
+	_, err := s.st.AppendBatchKV(ctx, &kvs)
 	if err != nil {
+		return &PushBatchResponse{Ok: false}, err
+	}
+	// 仅在写入成功后记录 moveID，避免失败后误判“已完成”导致无法重试
+	if err := s.st.SaveMoveRangeRecord(ctx, req.MoveId); err != nil {
 		return &PushBatchResponse{Ok: false}, err
 	}
 	return &PushBatchResponse{Ok: true}, nil
@@ -80,7 +92,7 @@ func (s *ChashGRPCServer) Replicate(ctx context.Context, req *ReplicateRequest) 
 		})
 	}
 	// 批量应用到底层状态机
-	err := s.st.BatchApply(ctx, cmds)
+	err := s.st.BatchApply(ctx, &cmds)
 	if err != nil {
 		return &ReplicateResponse{Ok: false}, err
 	}

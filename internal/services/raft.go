@@ -22,6 +22,7 @@ func NewRaftKVService(st storage.Storage, node *raft.Node) KVService {
 // 只在 Leader 节点接受写；非 Leader 返回 ErrNotLeader
 func (s *RaftKVService) Put(ctx context.Context, key, value string) error {
 	if !s.node.IsLeader() {
+		// TODO: 调用 remote client 转发请求到 Leader
 		return errors.ErrNotLeader
 	}
 
@@ -37,6 +38,7 @@ func (s *RaftKVService) Put(ctx context.Context, key, value string) error {
 // 只在 Leader 上接受，其他节点返回 ErrNotLeader
 func (s *RaftKVService) Delete(ctx context.Context, key string) error {
 	if !s.node.IsLeader() {
+		// TODO: 调用 remote client 转发请求到 Leader
 		return errors.ErrNotLeader
 	}
 
@@ -51,6 +53,7 @@ func (s *RaftKVService) Delete(ctx context.Context, key string) error {
 // 当前实现为：只在 Leader 上允许读取，直接从本地存储读取
 func (s *RaftKVService) Get(ctx context.Context, key string) (string, error) {
 	if !s.node.IsLeader() {
+		// 	TODO: 调用 remote client 转发请求到 Leader
 		return "", errors.ErrNotLeader
 	}
 	// 确保线性一致性读
