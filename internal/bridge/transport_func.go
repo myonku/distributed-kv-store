@@ -6,14 +6,6 @@ import (
 	"distributed-kv-store/internal/errors"
 )
 
-// 根据 key 查询负责节点 ID
-func (b *MemberBridge) OwnerNodeID(key string) (nodeID string, ok bool, err error) {
-	if b == nil || b.consHashRing == nil {
-		return "", false, errors.ErrResourceNotInit
-	}
-	return b.consHashRing.GetNode(key)
-}
-
 // 返回指定节点对外服务地址
 func (b *MemberBridge) ClientAddress(nodeID string) (addr string, ok bool) {
 	if b == nil {

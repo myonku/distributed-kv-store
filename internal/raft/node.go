@@ -8,53 +8,22 @@ import (
 	"time"
 )
 
-type Role int
-
-const (
-	Follower Role = iota
-	Leader
-	Candidate
-)
-
-// 提交结果
-type ApplyResult struct {
-	Index uint64
-	Term  uint64
-	Err   error
-}
-
-// 心跳结果
-type HeartbeatResult struct {
-	Term    uint64
-	Success bool
-}
-
-// 供上层查询的节点状态快照
-type Status struct {
-	ID            string
-	Role          Role
-	Term          uint64
-	CommitIndex   uint64
-	LastApplied   uint64
-	CurrentLeader string
-}
-
 // Raft 节点
 type Node struct {
 	mu sync.RWMutex
 
-	id    string
-	role  Role
-	peers map[string]configs.ClusterNode // 运行时成员视图
-
-	term        uint64
-	votedFor    string
-	commitIndex uint64
-	lastApplied uint64
-	voteCount   int // 当前任期内已获得的选票数（包含自己）
-	leaderID    string
+	id          string
+	role        Role
+	peers       map[string]RaftPeer // 运行时成员视图
+	term        uint64              // 当前任期
+	votedFor    string              // 当前任期内投票给的节点 ID
+	commitIndex uint64              // 已提交的最高日志索引
+	lastApplied uint64              // 最近一次应用到状态机的日志索引
+	voteCount   int                 // 当前任期内已获得的选票数（包含自己）
+	leaderID    string              // 当前任期内认为的 Leader 节点 ID
 
 	// leader 才使用
+
 	nextIndex  map[string]uint64 // 下一个要发送给该 follower 的日志条目索引
 	matchIndex map[string]uint64 // 已知该 follower 已复制的最高日志条目索引
 
@@ -83,9 +52,13 @@ func NewNode(
 ) *Node {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	peersMap := make(map[string]configs.ClusterNode, len(cfg.Membership.Peers))
+	peersMap := make(map[string]RaftPeer, len(cfg.Membership.Peers))
 	for _, p := range cfg.Membership.Peers {
-		peersMap[p.ID] = p
+		peersMap[p.ID] = RaftPeer{
+			ID:              p.ID,
+			ClientAddress:   p.ClientAddress,
+			RaftGRPCAddress: p.RaftGRPCAddress,
+		}
 	}
 
 	n := &Node{

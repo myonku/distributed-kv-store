@@ -140,13 +140,6 @@ func (n *Node) ProposeConfChange(ctx context.Context, cc configs.ClusterConfigCh
 	return ApplyResult{Index: newIndex, Term: term, Err: nil}, nil
 }
 
-// 重置选举超时计时器（收到有效 RPC 时调用）
-func (n *Node) resetElectionTimeout() {
-	n.mu.Lock()
-	n.electionResetAt = time.Now()
-	n.mu.Unlock()
-}
-
 // 确保当前任期至少有一条已提交日志（必要时提交 noop）
 func (n *Node) ensureCommittedInCurrentTerm(ctx context.Context) error {
 
@@ -191,7 +184,7 @@ func (n *Node) quorumHeartbeat(ctx context.Context) error {
 	leaderID := n.id
 	leaderCommit := n.commitIndex
 	hbTimeout := n.heartbeatTimeout
-	peersSnapshot := make(map[string]configs.ClusterNode, len(n.peers))
+	peersSnapshot := make(map[string]RaftPeer, len(n.peers))
 	maps.Copy(peersSnapshot, n.peers)
 	n.mu.RUnlock()
 
@@ -230,6 +223,7 @@ func (n *Node) quorumHeartbeat(ctx context.Context) error {
 					n.term = resp.Term
 					n.role = Follower
 					n.votedFor = ""
+					n.leaderID = ""
 					n.hardStateStore.Save(raft_store.HardState{
 						Term:        n.term,
 						VotedFor:    n.votedFor,
@@ -305,11 +299,12 @@ func (n *Node) Status() Status {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	return Status{
-		ID:          n.id,
-		Role:        n.role,
-		Term:        n.term,
-		CommitIndex: n.commitIndex,
-		LastApplied: n.lastApplied,
+		ID:            n.id,
+		Role:          n.role,
+		Term:          n.term,
+		CommitIndex:   n.commitIndex,
+		LastApplied:   n.lastApplied,
+		CurrentLeader: n.leaderID,
 	}
 }
 
@@ -320,11 +315,15 @@ func (n *Node) IsLeader() bool {
 	return n.role == Leader
 }
 
-// 返回当前 Leader ID（如果已知）
-func (n *Node) LeaderID() string {
+// 返回当前 Leader 信息（如果已知），否则返回空结构体
+func (n *Node) LeaderInfo() RaftPeer {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	return n.leaderID
+	// 从 peers 列表中查找当前 leaderID 对应的节点信息
+	if leader, ok := n.peers[n.leaderID]; ok {
+		return leader
+	}
+	return RaftPeer{}
 }
 
 // 加载持久化状态（term / votedFor / commitIndex）

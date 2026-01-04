@@ -4,6 +4,7 @@ import (
 	"context"
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/raft/raft_store"
+	"time"
 
 	"google.golang.org/grpc"
 )
@@ -76,6 +77,7 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 		n.term = req.Term
 		n.role = Follower
 		n.votedFor = ""
+		n.leaderID = ""
 		n.hardStateStore.Save(raft_store.HardState{
 			Term:        n.term,
 			VotedFor:    n.votedFor,
@@ -83,8 +85,22 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 		})
 	}
 
+	// 同任期收到 AppendEntries：无论当前是 Candidate/Leader，都应承认对方并退回 Follower
+	if req.Term == n.term && n.role != Follower {
+		n.role = Follower
+		n.votedFor = ""
+		n.hardStateStore.Save(raft_store.HardState{
+			Term:        n.term,
+			VotedFor:    n.votedFor,
+			CommitIndex: n.commitIndex,
+		})
+	}
+
+	// 维护当前认为的 Leader
+	n.leaderID = req.LeaderID
+
 	// 重置选举超时
-	n.resetElectionTimeout()
+	n.electionResetAt = time.Now()
 
 	// 心跳请求（无日志条目）可快速返回
 	if len(req.Entries) == 0 {
@@ -191,6 +207,7 @@ func (n *Node) HandleRequestVote(ctx context.Context, req *RequestVoteRequest) (
 		n.term = req.Term
 		n.role = Follower
 		n.votedFor = ""
+		n.leaderID = ""
 		n.hardStateStore.Save(raft_store.HardState{
 			Term:        n.term,
 			VotedFor:    n.votedFor,
@@ -222,6 +239,7 @@ func (n *Node) HandleRequestVote(ctx context.Context, req *RequestVoteRequest) (
 	// 如果尚未投票或已投给该候选人，且日志足够新，则投票
 	if (n.votedFor == "" || n.votedFor == req.CandidateID) && upToDate {
 		n.votedFor = req.CandidateID
+		n.leaderID = ""
 		resp.VoteGranted = true
 	}
 

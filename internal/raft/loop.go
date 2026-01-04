@@ -61,6 +61,7 @@ func (n *Node) handleElectionTimeout() {
 	n.role = Candidate
 	n.term++
 	n.votedFor = n.id
+	n.leaderID = ""
 	n.voteCount = 1 // 先算上自己的一票
 	// 持久化当前任期和投票信息
 	n.hardStateStore.Save(raft_store.HardState{
@@ -85,7 +86,7 @@ func (n *Node) handleElectionTimeout() {
 	}
 
 	// 拷贝 peers 列表供锁外使用
-	peersSnapshot := make(map[string]configs.ClusterNode, len(n.peers))
+	peersSnapshot := make(map[string]RaftPeer, len(n.peers))
 	maps.Copy(peersSnapshot, n.peers)
 	n.mu.Unlock()
 
@@ -124,6 +125,7 @@ func (n *Node) handleElectionTimeout() {
 				n.term = resp.Term
 				n.role = Follower
 				n.votedFor = ""
+				n.leaderID = ""
 				n.hardStateStore.Save(raft_store.HardState{
 					Term:        n.term,
 					VotedFor:    n.votedFor,
@@ -142,6 +144,7 @@ func (n *Node) handleElectionTimeout() {
 				// 简单多数判断：超过集群一半节点即成为 Leader
 				if n.voteCount > len(n.peers)/2 {
 					n.role = Leader
+					n.leaderID = n.id
 					// 初始化所有 follower 的 nextIndex / matchIndex
 					var nextIdx uint64 = 1
 					if n.logStore != nil {
@@ -182,7 +185,7 @@ func (n *Node) broadcastHeartbeat() {
 	leaderID := n.id
 	leaderCommit := n.commitIndex
 	nextIdxSnapshot := make(map[string]uint64, len(n.nextIndex))
-	peersSnapshot := make(map[string]configs.ClusterNode, len(n.peers))
+	peersSnapshot := make(map[string]RaftPeer, len(n.peers))
 	maps.Copy(nextIdxSnapshot, n.nextIndex)
 	maps.Copy(peersSnapshot, n.peers)
 
@@ -250,6 +253,7 @@ func (n *Node) broadcastHeartbeat() {
 				n.term = resp.Term
 				n.role = Follower
 				n.votedFor = ""
+				n.leaderID = ""
 				n.hardStateStore.Save(raft_store.HardState{
 					Term:        n.term,
 					VotedFor:    n.votedFor,
@@ -410,7 +414,11 @@ func (n *Node) applyConfChange(cc *configs.ClusterConfigChange) error {
 	switch cc.Type {
 	case configs.ConfChangeAddNode:
 		// 添加到 peers
-		n.peers[cc.Node.ID] = cc.Node
+		n.peers[cc.Node.ID] = RaftPeer{
+			ID:              cc.Node.ID,
+			ClientAddress:   cc.Node.ClientAddress,
+			RaftGRPCAddress: cc.Node.RaftGRPCAddress,
+		}
 
 		// 初始化 leader 侧的 nextIndex / matchIndex
 		if n.role == Leader {

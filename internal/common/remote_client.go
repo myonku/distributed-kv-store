@@ -13,18 +13,18 @@ type RemoteClient interface {
 }
 
 // RemoteClient 实现远程请求转发客户端接口
-type ChashRemoteClient struct {
+type CommonRemoteClient struct {
 	client *http.Client
 }
 
-func NewChashRemoteClient() RemoteClient {
-	return &ChashRemoteClient{
+func NewCommonRemoteClient() RemoteClient {
+	return &CommonRemoteClient{
 		client: &http.Client{},
 	}
 }
 
 // Put 向指定节点存储键值对
-func (c *ChashRemoteClient) Put(ctx context.Context, targetAddr, key, value string) error {
+func (c *CommonRemoteClient) Put(ctx context.Context, targetAddr, key, value string) error {
 	req, err := http.NewRequest(http.MethodPut, targetAddr+"/kv", nil)
 	if err != nil {
 		return err
@@ -35,7 +35,7 @@ func (c *ChashRemoteClient) Put(ctx context.Context, targetAddr, key, value stri
 }
 
 // Get 从指定节点获取键值对
-func (c *ChashRemoteClient) Get(ctx context.Context, targetAddr, key string) (string, error) {
+func (c *CommonRemoteClient) Get(ctx context.Context, targetAddr, key string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, targetAddr+"/kv?key="+key, nil)
 	if err != nil {
 		return "", err
@@ -46,7 +46,7 @@ func (c *ChashRemoteClient) Get(ctx context.Context, targetAddr, key string) (st
 }
 
 // Delete 从指定节点删除键值对
-func (c *ChashRemoteClient) Delete(ctx context.Context, targetAddr, key string) error {
+func (c *CommonRemoteClient) Delete(ctx context.Context, targetAddr, key string) error {
 	req, err := http.NewRequest(http.MethodDelete, targetAddr+"/kv?key="+key, nil)
 	if err != nil {
 		return err

@@ -11,19 +11,24 @@ import (
 
 // 基于 Raft 的分布式 KVService 实现
 type RaftKVService struct {
-	st   storage.Storage
-	node *raft.Node
+	st           storage.Storage
+	node         *raft.Node
+	remoteClient common.RemoteClient
 }
 
-func NewRaftKVService(st storage.Storage, node *raft.Node) KVService {
-	return &RaftKVService{st: st, node: node}
+func NewRaftKVService(st storage.Storage, node *raft.Node, remoteClient common.RemoteClient) KVService {
+	return &RaftKVService{st: st, node: node, remoteClient: remoteClient}
 }
 
-// 只在 Leader 节点接受写；非 Leader 返回 ErrNotLeader
 func (s *RaftKVService) Put(ctx context.Context, key, value string) error {
 	if !s.node.IsLeader() {
-		// TODO: 调用 remote client 转发请求到 Leader
-		return errors.ErrNotLeader
+		currentLeader := s.node.LeaderInfo()
+		if currentLeader.ClientAddress != "" {
+			// 转发请求到 Leader 节点
+			return s.remoteClient.Put(ctx, currentLeader.ClientAddress, key, value)
+		} else {
+			return errors.ErrLeaderDoesNotExist
+		}
 	}
 
 	cmd := common.Command{
@@ -35,11 +40,15 @@ func (s *RaftKVService) Put(ctx context.Context, key, value string) error {
 	return err
 }
 
-// 只在 Leader 上接受，其他节点返回 ErrNotLeader
 func (s *RaftKVService) Delete(ctx context.Context, key string) error {
 	if !s.node.IsLeader() {
-		// TODO: 调用 remote client 转发请求到 Leader
-		return errors.ErrNotLeader
+		currentLeader := s.node.LeaderInfo()
+		if currentLeader.ClientAddress != "" {
+			// 转发请求到 Leader 节点
+			return s.remoteClient.Delete(ctx, currentLeader.ClientAddress, key)
+		} else {
+			return errors.ErrLeaderDoesNotExist
+		}
 	}
 
 	cmd := common.Command{
@@ -50,11 +59,15 @@ func (s *RaftKVService) Delete(ctx context.Context, key string) error {
 	return err
 }
 
-// 当前实现为：只在 Leader 上允许读取，直接从本地存储读取
 func (s *RaftKVService) Get(ctx context.Context, key string) (string, error) {
 	if !s.node.IsLeader() {
-		// 	TODO: 调用 remote client 转发请求到 Leader
-		return "", errors.ErrNotLeader
+		currentLeader := s.node.LeaderInfo()
+		if currentLeader.ClientAddress != "" {
+			// 转发请求到 Leader 节点
+			return s.remoteClient.Get(ctx, currentLeader.ClientAddress, key)
+		} else {
+			return "", errors.ErrLeaderDoesNotExist
+		}
 	}
 	// 确保线性一致性读
 	if err := s.node.LinearizableRead(ctx); err != nil {

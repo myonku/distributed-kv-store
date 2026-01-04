@@ -36,7 +36,7 @@ func (m *BackgroundTaskManager) StartTask(name string) error {
 	if !exists {
 		return nil
 	}
-	return task.Start()
+	return task.Start(m.ctx)
 }
 
 // 停止某个后台任务
@@ -51,7 +51,7 @@ func (m *BackgroundTaskManager) StopTask(name string) error {
 // StartAll 启动所有注册的后台任务
 func (m *BackgroundTaskManager) StartAll() error {
 	for _, task := range m.tasks {
-		if err := task.Start(); err != nil {
+		if err := task.Start(m.ctx); err != nil {
 			return err
 		}
 	}

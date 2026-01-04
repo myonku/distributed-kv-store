@@ -6,24 +6,6 @@ import (
 	"distributed-kv-store/internal/gossip"
 )
 
-// 提取 gossip 成员信息为 chash 节点
-func MemberToNode(m *gossip.Member) *chash.Node {
-	return chash.NewNode(
-		m.ID,
-		m.ClientAddress,
-		m.CHashGRPCAddress,
-		m.Weight)
-}
-
-// 批量转换 gossip 成员为 chash 节点列表
-func MembersToNodes(members []gossip.Member) []chash.Node {
-	nodes := make([]chash.Node, 0, len(members))
-	for _, m := range members {
-		nodes = append(nodes, *MemberToNode(&m))
-	}
-	return nodes
-}
-
 // 从 gossip 成员快照重建一致性哈希环并维护通信信息，返回 Ring 重建计划
 func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) (chash.RebalancePlan, error) {
 	if b == nil || b.consHashRing == nil {

@@ -1,5 +1,7 @@
 package util
 
+import "context"
+
 // 日志工具类接口
 type Logger interface {
 	Infof(format string, args ...any)
@@ -10,6 +12,6 @@ type Logger interface {
 
 // 后台任务的基本接口
 type BackgroundTask interface {
-	Start() error
+	Start(ctx context.Context) error
 	Stop() error
 }

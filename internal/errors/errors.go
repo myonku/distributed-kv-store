@@ -4,6 +4,7 @@ import err "errors"
 
 var (
 	ErrNotLeader           = err.New("not leader")                   // 当前节点不是 Leader
+	ErrLeaderDoesNotExist  = err.New("leader does not exist")        // 当前没有 Leader 节点
 	ErrClientNotExist      = err.New("client does not exist")        // 指定的客户端不存在
 	ErrUnSupportedMode     = err.New("unsupported mode")             // 不支持的模式
 	ErrLogIndexMismatch    = err.New("log index mismatch")           // 日志索引不匹配
@@ -19,4 +20,5 @@ var (
 	ErrPushBatchFailed     = err.New("push batch failed")            // PushBatch 操作失败
 	ErrReplicateFailed     = err.New("replicate failed")             // Replicate 操作失败
 	ErrInvalidCommandOp    = err.New("invalid command operation")    // 无效的命令操作
+	ErrKeyNotFound         = err.New("key not found")                // 未找到指定的键
 )
