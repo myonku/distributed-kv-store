@@ -104,9 +104,12 @@ func (n *Node) Snapshot() []Member {
 
 // 返回本节点 ID
 func (n *Node) SelfID() string {
+	if n == nil {
+		return ""
+	}
 	n.mu.RLock()
 	defer n.mu.RUnlock()
-	if n == nil || n.self == nil {
+	if n.self == nil {
 		return ""
 	}
 	return n.self.ID
@@ -133,7 +136,7 @@ func (n *Node) Subscribe() <-chan Event {
 	return n.events
 }
 
-// 事件通道。仅提供单一只通道供外部消费
+// 事件通道。仅提供单一通道供外部消费
 func (n *Node) Events() <-chan Event {
 	return n.events
 }
@@ -169,7 +172,6 @@ func (n *Node) probeOnce(ctx context.Context) error {
 		return nil
 	}
 
-	// 成功：刷新本地视图（这里不做 incarnation 逻辑，只做占位刷新）
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if m, ok := n.members[peerID]; ok {
@@ -198,7 +200,7 @@ func (n *Node) onProbeTimeout(ctx context.Context, peerID string) {
 		return
 	}
 	old := *m
-	// TODO: 更精细的失败检测策略（阈值、间接探测、反熵等）
+	// 后续可能需要更精细的失败检测策略（阈值、间接探测、反熵等）
 	m.State = StateSuspect
 	m.StateUpdated = time.Now().UnixNano()
 	n.emitEventIfChangedLocked(ctx, *m, old)
@@ -278,7 +280,6 @@ func (n *Node) gossipOnce(ctx context.Context) error {
 		var cancel context.CancelFunc
 		if n.probeTimeout > 0 {
 			rpcCtx, cancel = context.WithTimeout(ctx, n.probeTimeout)
-			defer cancel()
 		}
 		// 发送 PushPull 请求
 		resp, err := n.transport.PushPull(rpcCtx, peerID, &PushPullRequest{
@@ -286,6 +287,9 @@ func (n *Node) gossipOnce(ctx context.Context) error {
 			Digests:     digests,
 			FullMembers: full,
 		})
+		if cancel != nil {
+			cancel()
+		}
 		// 忽略错误，继续下一个
 		if err != nil || resp == nil {
 			continue
@@ -297,8 +301,11 @@ func (n *Node) gossipOnce(ctx context.Context) error {
 
 // 应用来自 PushPull 响应的 Delta 更新
 func (n *Node) applyDelta(ctx context.Context, delta []Member) error {
-	if n == nil || len(delta) == 0 {
+	if n == nil {
 		return errors.ErrResourceNotInit
+	}
+	if len(delta) == 0 {
+		return nil
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -366,7 +373,8 @@ func (n *Node) emitEventIfChangedLocked(_ context.Context, member Member, old Me
 		changed = true
 	} else if member.State != old.State ||
 		member.Incarnation != old.Incarnation ||
-		member.StateUpdated != old.StateUpdated ||
+		// 如果只有 stateUpdated 变化，一般不触发事件
+		// member.StateUpdated != old.StateUpdated ||
 		member.GossipGRPCAddress != old.GossipGRPCAddress ||
 		member.CHashGRPCAddress != old.CHashGRPCAddress ||
 		member.ClientAddress != old.ClientAddress ||
@@ -379,7 +387,7 @@ func (n *Node) emitEventIfChangedLocked(_ context.Context, member Member, old Me
 
 	var et EventType
 	if old.ID != "" && member.State == old.State {
-		// 状态没变但重要字段变了：用 MembershipChanged 便于外部（如 ring）刷新
+		// 状态没变但重要字段变化，归为 MembershipChanged
 		et = EventMembershipChanged
 	} else {
 		switch member.State {

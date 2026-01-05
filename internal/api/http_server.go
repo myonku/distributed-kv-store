@@ -2,74 +2,22 @@ package api
 
 import (
 	"context"
-	"distributed-kv-store/internal/services"
-	"io"
 	"log"
 	"net/http"
 	"time"
+
+	"distributed-kv-store/internal/services"
 )
 
 // Http Server 管理
 
 // StartHTTPServer 启动对外提供 KV 服务的 HTTP Server。
 func StartHTTPServer(ctx context.Context, addr string, svc services.KVService) error {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/kv", func(w http.ResponseWriter, r *http.Request) {
-		key := r.URL.Query().Get("key")
-		if key == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte("missing key"))
-			return
-		}
-
-		switch r.Method {
-		case http.MethodPut: // PUT路由约定为写入操作
-			valueBytes, err := io.ReadAll(r.Body)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				_, _ = w.Write([]byte("read body error"))
-				return
-			}
-			defer r.Body.Close()
-
-			if err := svc.Put(r.Context(), key, string(valueBytes)); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				_, _ = w.Write([]byte(err.Error()))
-				return
-			}
-			w.WriteHeader(http.StatusNoContent)
-
-		case http.MethodGet: // GET路由约定为读取操作
-			value, err := svc.Get(r.Context(), key)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				_, _ = w.Write([]byte(err.Error()))
-				return
-			}
-			if value == "" {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(value))
-
-		case http.MethodDelete: // DELETE路由约定为删除操作
-			if err := svc.Delete(r.Context(), key); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				_, _ = w.Write([]byte(err.Error()))
-				return
-			}
-			w.WriteHeader(http.StatusNoContent)
-
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
+	router := NewRouter(svc)
 
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      mux,
+		Handler:      router,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 	}
