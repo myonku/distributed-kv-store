@@ -4,8 +4,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-type Mode string        // 运行模式：Raft 强一致复制，或基于一致性哈希的去中心化分片
-type ConfChangeType int // 配置变更类型
+type Mode string // 运行模式：Raft 强一致复制，或基于一致性哈希的去中心化分片
 type MembershipType string
 
 const (
@@ -15,21 +14,10 @@ const (
 )
 
 const (
-	ConfChangeAddNode ConfChangeType = iota
-	ConfChangeRemoveNode
-)
-
-const (
 	ModeStandalone     Mode = "standalone"
 	ModeRaft           Mode = "raft"
 	ModeConsHashGossip Mode = "chash_gossip"
 )
-
-// 集群配置变更条目
-type ClusterConfigChange struct {
-	Type ConfChangeType
-	Node ClusterNode
-}
 
 // Raft 模式的集群配置
 type RaftClusterConfig struct {
@@ -59,7 +47,7 @@ type CHashClusterConfig struct {
 	ReplicationFactor int // 副本因子
 }
 
-// 集群中的一个节点（物理进程上的一个“服务节点”）
+// 集群中的一个节点（物理进程上的一个“服务节点”，或是逻辑上的一个“虚拟节点”）
 type ClusterNode struct {
 	ID                string // 既作为物理节点 ID，也作为逻辑节点 ID
 	ClientAddress     string // 对外 HTTP（物理节点层面使用）

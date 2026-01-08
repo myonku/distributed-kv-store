@@ -207,7 +207,7 @@ func LookupOwners(keys []uint32, owners map[uint32]string, h uint32, replication
 	})
 	seen := make(map[string]struct{})
 	// 收集不同的节点 ID，直到达到副本因子要求；
-	// 为避免 replicationFactor > 物理节点数导致死循环，这里最多扫描一圈 keys。
+	// 为避免 replicationFactor > 物理节点数导致死循环，这里最多扫描一圈 keys
 	steps := 0
 	for len(seen) < replicationFactor && steps < len(keys) {
 		if idx == len(keys) {

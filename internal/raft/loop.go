@@ -2,7 +2,6 @@ package raft
 
 import (
 	"context"
-	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/raft/raft_store"
 	"maps"
@@ -406,13 +405,13 @@ func (n *Node) notifyApplyResult(entry raft_store.LogEntry, err error) {
 }
 
 // 在状态机层面应用一条配置变更日志
-func (n *Node) applyConfChange(cc *configs.ClusterConfigChange) error {
+func (n *Node) applyConfChange(cc *common.ClusterConfigChange) error {
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
 	switch cc.Type {
-	case configs.ConfChangeAddNode:
+	case common.ConfChangeAddNode:
 		// 添加到 peers
 		n.peers[cc.Node.ID] = RaftPeer{
 			ID:              cc.Node.ID,
@@ -438,7 +437,7 @@ func (n *Node) applyConfChange(cc *configs.ClusterConfigChange) error {
 			return err
 		}
 
-	case configs.ConfChangeRemoveNode:
+	case common.ConfChangeRemoveNode:
 		// 从 peers 里删掉
 		delete(n.peers, cc.Node.ID)
 

@@ -2,7 +2,6 @@ package raft_store
 
 import (
 	"context"
-	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/storage"
 )
@@ -19,11 +18,11 @@ type RaftLogStore interface {
 
 // 日志条目
 type LogEntry struct {
-	Index uint64                       // 日志索引
-	Term  uint64                       // 任期号
-	Type  common.LogEntryType          // 日志类型
-	Cmd   common.Command               // Type == EntryNormal 时使用
-	Conf  *configs.ClusterConfigChange // Type == EntryConfChange 时使用
+	Index uint64                      // 日志索引
+	Term  uint64                      // 任期号
+	Type  common.LogEntryType         // 日志类型
+	Cmd   common.Command              // Type == EntryNormal 时使用
+	Conf  *common.ClusterConfigChange // Type == EntryConfChange 时使用
 }
 
 type raftLogStore struct {

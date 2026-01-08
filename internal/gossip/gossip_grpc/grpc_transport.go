@@ -51,6 +51,10 @@ func (t *GRPCTransport) Ping(ctx context.Context, to string, req *gossip.PingReq
 	pbReq := &PingRequest{
 		FromId:          req.FromID,
 		FromIncarnation: req.FromIncarnation,
+		GossipAddr:      req.GossipAddr,
+		ClientAddress:   req.ClientAddress,
+		ChashAddr:       req.CHashAddr,
+		ChashWeight:     int32(req.ChashWeight),
 	}
 
 	pbResp, err := client.Ping(ctx, pbReq)

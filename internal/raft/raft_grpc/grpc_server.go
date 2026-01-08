@@ -2,7 +2,6 @@ package raft_grpc
 
 import (
 	"context"
-	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft"
@@ -55,7 +54,7 @@ func (s *RaftGRPCServer) AppendEntries(ctx context.Context, req *AppendEntriesRe
 			if len(e.Conf) == 0 {
 				return nil, fmt.Errorf("missing conf for conf-change entry (index=%d)", e.Index)
 			}
-			var cc configs.ClusterConfigChange
+			var cc common.ClusterConfigChange
 			if err := json.Unmarshal(e.Conf, &cc); err != nil {
 				return nil, fmt.Errorf("unmarshal conf change: %w", err)
 			}

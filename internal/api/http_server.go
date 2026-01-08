@@ -11,7 +11,7 @@ import (
 
 // Http Server 管理
 
-// StartHTTPServer 启动对外提供 KV 服务的 HTTP Server。
+// StartHTTPServer 启动对外提供 KV 服务的 HTTP Server
 func StartHTTPServer(ctx context.Context, addr string, svc services.KVService) error {
 	router := NewRouter(svc)
 

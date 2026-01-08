@@ -166,6 +166,10 @@ func (n *Node) probeOnce(ctx context.Context) error {
 	resp, err := n.transport.Ping(rpcCtx, peerID, &PingRequest{
 		FromID:          n.self.ID,
 		FromIncarnation: n.self.Incarnation,
+		GossipAddr:      n.self.GossipGRPCAddress,
+		ClientAddress:   n.self.ClientAddress,
+		CHashAddr:       n.self.CHashGRPCAddress,
+		ChashWeight:     n.self.Weight,
 	})
 	if err != nil || resp == nil || !resp.OK {
 		n.onProbeTimeout(ctx, peerID)
@@ -351,17 +355,6 @@ func (n *Node) applyDelta(ctx context.Context, delta []Member) error {
 		n.emitEventIfChangedLocked(ctx, *local, old)
 	}
 	return nil
-}
-
-// 成员视图发生变化时触发事件
-func (n *Node) emitEventIfChanged(ctx context.Context, member Member, old Member) {
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.emitEventIfChangedLocked(ctx, member, old)
 }
 
 // 更新成员视图发生变化时触发事件（调用方需持有锁）

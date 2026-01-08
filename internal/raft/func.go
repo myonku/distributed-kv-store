@@ -2,7 +2,6 @@ package raft
 
 import (
 	"context"
-	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft/raft_store"
@@ -90,7 +89,7 @@ func (n *Node) Propose(ctx context.Context, cmd common.Command) (ApplyResult, er
 }
 
 // 用于上层或控制面在 Leader 上发起配置变更
-func (n *Node) ProposeConfChange(ctx context.Context, cc configs.ClusterConfigChange) (ApplyResult, error) {
+func (n *Node) ProposeConfChange(ctx context.Context, cc common.ClusterConfigChange) (ApplyResult, error) {
 
 	if ctx == nil {
 		ctx = context.Background()

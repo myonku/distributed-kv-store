@@ -27,28 +27,8 @@ func (b *MemberBridge) runEventLoop() {
 			if !ok {
 				return
 			}
-
-			// 可能影响 ring 的事件都触发一次全量重建。后续可能根据事件类型做增量 Add/Remove
-			switch ev.Type {
-			case gossip.EventMemberUp,
-				gossip.EventMemberDead,
-				gossip.EventMemberSuspect,
-				gossip.EventMembershipChanged:
-				plan, _ := b.rebuildFromSnapshot(ev.Snapshot)
-				// 投递重建计划
-				select {
-				case b.balancePlanCh <- plan:
-				default:
-				}
-			default:
-				// 未知事件：保守起见也重建
-				plan, _ := b.rebuildFromSnapshot(ev.Snapshot)
-				// 投递重建计划
-				select {
-				case b.balancePlanCh <- plan:
-				default:
-				}
-			}
+			// 事件循环只负责投递最新快照
+			b.enqueueSnapshot(ev.Snapshot)
 		}
 	}
 }
@@ -57,7 +37,7 @@ func (b *MemberBridge) runEventLoop() {
 func (b *MemberBridge) runBalanceLoop() {
 	defer b.wg.Done()
 
-	if b == nil || b.consHashRing == nil || b.remoteClient == nil {
+	if b == nil || b.consHashRing == nil {
 		return
 	}
 
@@ -65,28 +45,59 @@ func (b *MemberBridge) runBalanceLoop() {
 		select {
 		case <-b.ctx.Done():
 			return
-		case plan, ok := <-b.balancePlanCh:
+		case snapshot, ok := <-b.snapshotCh:
 			if !ok {
 				return
 			}
-			// 如果 plan 为空或 epoch 未更新则跳过
-			if plan.Epoch <= b.lastAppliedEpoch || len(plan.Moves) == 0 {
+
+			plan, err := b.rebuildFromSnapshot(snapshot)
+			if err != nil {
 				continue
 			}
-			// 更新已应用的 epoch
+			// epoch 未更新则无需处理
+			if plan.Epoch <= b.lastAppliedEpoch {
+				continue
+			}
 			b.lastAppliedEpoch = plan.Epoch
 
-			// 执行数据迁移
 			for _, move := range plan.Moves {
-				go b.ExcuteMovePlan(move)
+				moveCopy := move
+				epochCopy := plan.Epoch
+				go b.excuteMovePlan(epochCopy, moveCopy)
 			}
 		}
 	}
 }
 
+// 将最新快照投递给 balance loop。
+// 采用“覆盖式”投递策略：当通道已满时，丢弃旧快照，保证尽快应用最新视图
+func (b *MemberBridge) enqueueSnapshot(snapshot []gossip.Member) {
+	if b == nil {
+		return
+	}
+	// 拷贝一份，避免调用方后续修改底层 slice
+	ss := make([]gossip.Member, len(snapshot))
+	copy(ss, snapshot)
+
+	select {
+	case b.snapshotCh <- ss:
+		return
+	default:
+		// 丢弃旧快照
+		select {
+		case <-b.snapshotCh:
+		default:
+		}
+		select {
+		case b.snapshotCh <- ss:
+		default:
+		}
+	}
+}
+
 // 执行单个数据迁移计划
-func (m *MemberBridge) ExcuteMovePlan(move chash.MoveRange) error {
-	if m == nil || m.transport == nil {
+func (m *MemberBridge) excuteMovePlan(epoch uint64, move chash.MoveRange) error {
+	if m == nil || m.transport == nil || m.st == nil {
 		return errors.ErrResourceNotInit
 	}
 	selfID := m.gossipNode.SelfID()
@@ -97,7 +108,7 @@ func (m *MemberBridge) ExcuteMovePlan(move chash.MoveRange) error {
 
 	// 计算 moveID（用于去重）
 	moveID := common.ComputeMoveID(
-		m.lastAppliedEpoch,
+		epoch,
 		move.StartHash,
 		move.EndHash,
 		move.FromID,

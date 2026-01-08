@@ -234,6 +234,10 @@ type PingRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	FromId          string                 `protobuf:"bytes,1,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
 	FromIncarnation uint64                 `protobuf:"varint,2,opt,name=from_incarnation,json=fromIncarnation,proto3" json:"from_incarnation,omitempty"`
+	GossipAddr      string                 `protobuf:"bytes,3,opt,name=gossip_addr,json=gossipAddr,proto3" json:"gossip_addr,omitempty"`
+	ClientAddress   string                 `protobuf:"bytes,4,opt,name=client_address,json=clientAddress,proto3" json:"client_address,omitempty"`
+	ChashAddr       string                 `protobuf:"bytes,5,opt,name=chash_addr,json=chashAddr,proto3" json:"chash_addr,omitempty"`
+	ChashWeight     int32                  `protobuf:"varint,6,opt,name=chash_weight,json=chashWeight,proto3" json:"chash_weight,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -278,6 +282,34 @@ func (x *PingRequest) GetFromId() string {
 func (x *PingRequest) GetFromIncarnation() uint64 {
 	if x != nil {
 		return x.FromIncarnation
+	}
+	return 0
+}
+
+func (x *PingRequest) GetGossipAddr() string {
+	if x != nil {
+		return x.GossipAddr
+	}
+	return ""
+}
+
+func (x *PingRequest) GetClientAddress() string {
+	if x != nil {
+		return x.ClientAddress
+	}
+	return ""
+}
+
+func (x *PingRequest) GetChashAddr() string {
+	if x != nil {
+		return x.ChashAddr
+	}
+	return ""
+}
+
+func (x *PingRequest) GetChashWeight() int32 {
+	if x != nil {
+		return x.ChashWeight
 	}
 	return 0
 }
@@ -447,10 +479,16 @@ const file_internal_gossip_g_proto_rawDesc = "" +
 	"\x06weight\x18\x05 \x01(\x05R\x06weight\x12*\n" +
 	"\x05state\x18\x06 \x01(\x0e2\x14.gossip.v1.NodeStateR\x05state\x12 \n" +
 	"\vincarnation\x18\a \x01(\x04R\vincarnation\x12#\n" +
-	"\rstate_updated\x18\b \x01(\x03R\fstateUpdated\"Q\n" +
+	"\rstate_updated\x18\b \x01(\x03R\fstateUpdated\"\xdb\x01\n" +
 	"\vPingRequest\x12\x17\n" +
 	"\afrom_id\x18\x01 \x01(\tR\x06fromId\x12)\n" +
-	"\x10from_incarnation\x18\x02 \x01(\x04R\x0ffromIncarnation\"\x1e\n" +
+	"\x10from_incarnation\x18\x02 \x01(\x04R\x0ffromIncarnation\x12\x1f\n" +
+	"\vgossip_addr\x18\x03 \x01(\tR\n" +
+	"gossipAddr\x12%\n" +
+	"\x0eclient_address\x18\x04 \x01(\tR\rclientAddress\x12\x1d\n" +
+	"\n" +
+	"chash_addr\x18\x05 \x01(\tR\tchashAddr\x12!\n" +
+	"\fchash_weight\x18\x06 \x01(\x05R\vchashWeight\"\x1e\n" +
 	"\fPingResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\"\x8d\x01\n" +
 	"\x0fPushPullRequest\x12\x17\n" +

@@ -9,7 +9,7 @@ import (
 	"distributed-kv-store/internal/common"
 )
 
-// 内存实现 + 简单的 index 递增，用于早期开发阶段
+// 内存实现 + 简单的 index 递增
 type memoryStorage struct {
 	mu sync.RWMutex
 

@@ -26,6 +26,10 @@ type Transport interface {
 type PingRequest struct {
 	FromID          string
 	FromIncarnation uint64
+	GossipAddr      string
+	ClientAddress   string
+	CHashAddr       string
+	ChashWeight     int
 }
 
 type PingResponse struct {
@@ -62,14 +66,25 @@ func (n *Node) HandlePing(ctx context.Context, req *PingRequest) (*PingResponse,
 
 	now := time.Now().UnixNano()
 	member, ok := n.members[fromID]
+	// 新成员，加入本地视图
 	if !ok {
-		// 不允许通过 Ping 自动引入成员，忽略该请求
-		// 后续可能更新 Ping 消息内容支持引入新成员
-		// m := &Member{ID: fromID, State: StateAlive, Incarnation: req.FromIncarnation, StateUpdated: now}
-		// n.members[fromID] = m
-		// n.emitEventIfChanged(ctx, *m, StateDead)
+		m := &Member{
+			ID:                req.FromID,
+			GossipGRPCAddress: req.GossipAddr,
+			CHashGRPCAddress:  req.CHashAddr,
+			ClientAddress:     req.ClientAddress,
+			Weight:            req.ChashWeight,
+			State:             StateAlive,
+			Incarnation:       req.FromIncarnation,
+			StateUpdated:      now,
+		}
+		n.members[fromID] = m
+		// 触发成员加入事件
+		n.emitEventIfChangedLocked(ctx, *m, Member{})
+
 		return &PingResponse{OK: true}, nil
 	}
+	// 已存在成员，更新存活状态
 	old := *member
 	// 占位合并规则：incarnation 更大则覆盖；否则仅刷新存活时间
 	if req.FromIncarnation > member.Incarnation {
@@ -77,15 +92,13 @@ func (n *Node) HandlePing(ctx context.Context, req *PingRequest) (*PingResponse,
 		member.State = StateAlive
 		member.StateUpdated = now
 	} else {
-		// 更新存活时间
+		// 更新存活时间和状态
 		member.StateUpdated = now
-		// 保证状态为存活
 		if member.State != StateAlive {
 			member.State = StateAlive
 		}
 	}
-
-	// 已持有 n.mu
+	// 触发成员状态变更事件
 	n.emitEventIfChangedLocked(ctx, *member, old)
 
 	return &PingResponse{OK: true}, nil

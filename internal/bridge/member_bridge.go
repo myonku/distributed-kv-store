@@ -20,14 +20,13 @@ type MemberBridge struct {
 	gossipNode   *gossip.Node // 对应的 gossip 成员节点
 	consHashRing chash.Ring   // 该成员所属的一致性哈希环
 
-	memberAddrs *sync.Map // 节点ID->地址信息映射
-
+	memberAddrs  *sync.Map           // 节点ID->地址信息映射
 	transport    chash.Transport     // 内部通信
 	remoteClient common.RemoteClient // 远程客户端，用于请求转发
 	st           storage.Storage     // 用于支持数据迁移及记录持久化
 
-	balancePlanCh    chan chash.RebalancePlan // Ring平衡计划通道
-	lastAppliedEpoch uint64                   // 上次应用的 Ring 版本
+	snapshotCh       chan []gossip.Member // 成员快照更新通道（用于驱动 ring rebuild + rebalance）
+	lastAppliedEpoch uint64               // 上次应用的 Ring 版本
 	mu               sync.Mutex
 	ctx              context.Context
 	cancel           context.CancelFunc
@@ -55,12 +54,11 @@ func NewMemberBridge(
 		remoteClient:     remoteClient,
 		memberAddrs:      &sync.Map{},
 		st:               st,
-		balancePlanCh:    make(chan chash.RebalancePlan, 10),
+		snapshotCh:       make(chan []gossip.Member, 1),
 		lastAppliedEpoch: ring.Epoch(),
 	}
 }
 
-// 启动桥接器
 func (b *MemberBridge) Start() {
 	if b == nil || b.gossipNode == nil || b.consHashRing == nil {
 		return
@@ -71,20 +69,17 @@ func (b *MemberBridge) Start() {
 		b.mu.Unlock()
 		return
 	}
-	b.ctx, b.cancel = context.WithCancel(context.Background())
 	b.running = true
 	b.mu.Unlock()
 
-	// 启动即构建一次 ring，保证有初始路由视图
-	_, _ = b.rebuildFromSnapshot(b.gossipNode.Snapshot())
-
 	b.wg.Add(2)
-
 	go b.runEventLoop()
 	go b.runBalanceLoop()
+
+	// 启动即投递一次快照，保证有初始路由视图
+	b.enqueueSnapshot(b.gossipNode.Snapshot())
 }
 
-// 停止桥接器
 func (b *MemberBridge) Stop() {
 	if b == nil {
 		return

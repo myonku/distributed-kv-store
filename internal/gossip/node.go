@@ -7,21 +7,6 @@ import (
 	"time"
 )
 
-type EventType int
-
-const (
-	EventMemberUp          EventType = iota // 新节点加入
-	EventMemberSuspect                      // 节点被标记为可疑
-	EventMemberDead                         // 节点被标记为死亡
-	EventMembershipChanged                  // 成员信息变更
-)
-
-type Event struct {
-	Type     EventType
-	Member   Member
-	Snapshot []Member // 事件发生时的成员快照
-}
-
 // Gossip 节点
 type Node struct {
 	mu   sync.RWMutex

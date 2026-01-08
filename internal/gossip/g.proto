@@ -31,6 +31,10 @@ message Member {
 message PingRequest {
 	string from_id = 1;
 	uint64 from_incarnation = 2;
+	string gossip_addr = 3;
+	string client_address = 4;
+	string chash_addr = 5;
+	int32 chash_weight = 6;
 }
 
 message PingResponse {

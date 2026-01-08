@@ -6,11 +6,22 @@ import (
 
 type LogEntryType int
 type CommandOperation string
+type ConfChangeType int // 配置变更类型
 
 const (
 	EntryNormal     LogEntryType = iota // 普通日志条目
 	EntryConfChange                     // 配置变更日志条目
 )
+const (
+	ConfChangeAddNode ConfChangeType = iota
+	ConfChangeRemoveNode
+)
+
+// 集群配置变更条目
+type ClusterConfigChange struct {
+	Type ConfChangeType
+	Node configs.ClusterNode
+}
 
 const (
 	OpPut    CommandOperation = "put"    // 设置键值对
@@ -36,8 +47,8 @@ type RaftLogEntry struct {
 	Index uint64
 	Term  uint64
 	Cmd   Command
-	Type  LogEntryType                 // 日志类型
-	Conf  *configs.ClusterConfigChange // 可选的集群配置变更
+	Type  LogEntryType         // 日志类型
+	Conf  *ClusterConfigChange // 可选的集群配置变更
 }
 
 // Raft 硬状态在底层存储中的表示

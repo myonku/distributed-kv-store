@@ -31,7 +31,7 @@ func main() {
 	initGlobalLogger(configPath, appCfg)
 
 	// 根据运行模式选择 KVService 实现
-	_, svc, raftNode, err := buildKVService(appCfg) // node 仅在非单机模式下使用
+	_, svc, raftNode, err := buildKVService(appCfg)
 
 	if err != nil {
 		log.Fatalf("build kv service failed: %v", err)
