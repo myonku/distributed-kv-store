@@ -19,7 +19,7 @@ type GRPCTransport struct {
 	cli   map[string]CHashServiceClient // peerID -> client
 }
 
-// 返回新的 CHash GRPCTransport 实例
+// 返回新的 CHash GRPCTransport 实例，具体连接会在运行时添加
 func NewGRPCTransport() chash.Transport {
 	return &GRPCTransport{
 		conns: make(map[string]*grpc.ClientConn),

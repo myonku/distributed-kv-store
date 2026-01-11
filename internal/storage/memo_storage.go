@@ -28,6 +28,7 @@ type memoryStorage struct {
 	raftHardState *common.RaftHardState // 当前 Raft 硬状态（如未设置则为 nil）
 }
 
+// 返回新的内存存储实例的引用
 func NewStorage(cfg configs.StorageConfig) (Storage, error) {
 	return &memoryStorage{
 		data:             make(map[string]string),

@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/raft/raft_store"
 	"maps"
@@ -61,6 +62,7 @@ func (n *Node) handleElectionTimeout() {
 	n.term++
 	n.votedFor = n.id
 	n.leaderID = ""
+	n.notifyStateChangeLocked()
 	n.voteCount = 1 // 先算上自己的一票
 	// 持久化当前任期和投票信息
 	n.hardStateStore.Save(raft_store.HardState{
@@ -125,6 +127,7 @@ func (n *Node) handleElectionTimeout() {
 				n.role = Follower
 				n.votedFor = ""
 				n.leaderID = ""
+				n.notifyStateChangeLocked()
 				n.hardStateStore.Save(raft_store.HardState{
 					Term:        n.term,
 					VotedFor:    n.votedFor,
@@ -144,6 +147,7 @@ func (n *Node) handleElectionTimeout() {
 				if n.voteCount > len(n.peers)/2 {
 					n.role = Leader
 					n.leaderID = n.id
+					n.notifyStateChangeLocked()
 					// 初始化所有 follower 的 nextIndex / matchIndex
 					var nextIdx uint64 = 1
 					if n.logStore != nil {
@@ -253,6 +257,7 @@ func (n *Node) broadcastHeartbeat() {
 				n.role = Follower
 				n.votedFor = ""
 				n.leaderID = ""
+				n.notifyStateChangeLocked()
 				n.hardStateStore.Save(raft_store.HardState{
 					Term:        n.term,
 					VotedFor:    n.votedFor,
@@ -394,21 +399,44 @@ func (n *Node) applyEntry(entry raft_store.LogEntry) {
 
 // 通知上层该日志已应用的结果
 func (n *Node) notifyApplyResult(entry raft_store.LogEntry, err error) {
+	result := ApplyResult{Index: entry.Index, Term: entry.Term, Err: err}
+
+	// 先唤醒等待该 index 的 waiter（不阻塞 apply loop）
+	n.mu.Lock()
+	waiters := n.applyWaiters[entry.Index]
+	if len(waiters) > 0 {
+		delete(n.applyWaiters, entry.Index)
+	}
+	n.mu.Unlock()
+
+	for _, ch := range waiters {
+		select {
+		case ch <- result:
+		default:
+		}
+	}
+
+	// applyCh 仅作为事件流/观测用途：满了就丢弃，避免反向卡住 apply loop
 	select {
-	case n.applyCh <- ApplyResult{
-		Index: entry.Index,
-		Term:  entry.Term,
-		Err:   err,
-	}:
-	case <-n.ctx.Done():
+	case n.applyCh <- result:
+	default:
 	}
 }
 
 // 在状态机层面应用一条配置变更日志
 func (n *Node) applyConfChange(cc *common.ClusterConfigChange) error {
+	if cc == nil {
+		return nil
+	}
+
+	var op common.ConfChangeType
+	var node configs.ClusterNode
+	var removeID string
 
 	n.mu.Lock()
-	defer n.mu.Unlock()
+	op = cc.Type
+	node = cc.Node
+	removeID = cc.Node.ID
 
 	switch cc.Type {
 	case common.ConfChangeAddNode:
@@ -431,12 +459,6 @@ func (n *Node) applyConfChange(cc *common.ClusterConfigChange) error {
 			n.matchIndex[cc.Node.ID] = 0
 		}
 
-		// 通知 transport 层添加连接
-		err := n.transport.AddPeer(cc.Node)
-		if err != nil {
-			return err
-		}
-
 	case common.ConfChangeRemoveNode:
 		// 从 peers 里删掉
 		delete(n.peers, cc.Node.ID)
@@ -445,10 +467,17 @@ func (n *Node) applyConfChange(cc *common.ClusterConfigChange) error {
 		delete(n.nextIndex, cc.Node.ID)
 		delete(n.matchIndex, cc.Node.ID)
 
-		// 通知 transport 层移除连接
-		err := n.transport.RemovePeer(cc.Node.ID)
-		if err != nil {
-			return err
+	}
+
+	n.mu.Unlock()
+
+	// transport 连接管理不应影响 Raft conf-change 的可应用性：best-effort，失败可重试
+	if n.transport != nil {
+		switch op {
+		case common.ConfChangeAddNode:
+			_ = n.transport.AddPeer(node)
+		case common.ConfChangeRemoveNode:
+			_ = n.transport.RemovePeer(removeID)
 		}
 	}
 

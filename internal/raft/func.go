@@ -6,7 +6,6 @@ import (
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft/raft_store"
 	"maps"
-	"time"
 )
 
 // 在 Leader 上执行一次线性一致读屏障
@@ -223,6 +222,7 @@ func (n *Node) quorumHeartbeat(ctx context.Context) error {
 					n.role = Follower
 					n.votedFor = ""
 					n.leaderID = ""
+					n.notifyStateChangeLocked()
 					n.hardStateStore.Save(raft_store.HardState{
 						Term:        n.term,
 						VotedFor:    n.votedFor,
@@ -267,28 +267,45 @@ func (n *Node) waitAppliedTo(ctx context.Context, term uint64, index uint64) err
 		ctx = context.Background()
 	}
 
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
-
 	for {
+		n.mu.Lock()
+		if n.role != Leader || n.term != term {
+			n.mu.Unlock()
+			return errors.ErrNotLeader
+		}
+		if n.lastApplied >= index {
+			n.mu.Unlock()
+			return nil
+		}
+		stateCh := n.stateChangeCh
+		waiter := make(chan ApplyResult, 1)
+		if n.applyWaiters == nil {
+			n.applyWaiters = make(map[uint64][]chan ApplyResult)
+		}
+		n.applyWaiters[index] = append(n.applyWaiters[index], waiter)
+		n.mu.Unlock()
+
 		select {
 		case <-ctx.Done():
+			n.unregisterApplyWaiter(index, waiter)
 			return ctx.Err()
 		case <-n.ctx.Done():
+			n.unregisterApplyWaiter(index, waiter)
 			return context.Canceled
-		case <-ticker.C:
+		case <-stateCh:
+			// role/term 可能已变化，清理 waiter 后重试或返回 ErrNotLeader
+			n.unregisterApplyWaiter(index, waiter)
+			continue
+		case r := <-waiter:
+			// 已应用到目标索引：仍需确认等待期间未失去 Leader 身份
 			n.mu.RLock()
 			role := n.role
 			currentTerm := n.term
-			applied := n.lastApplied
 			n.mu.RUnlock()
-			// 如果等待期间失去 Leader 身份，则返回错误
 			if role != Leader || currentTerm != term {
 				return errors.ErrNotLeader
 			}
-			if applied >= index {
-				return nil
-			}
+			return r.Err
 		}
 	}
 }
@@ -337,4 +354,41 @@ func (n *Node) LoadState() error {
 	n.commitIndex = hardState.CommitIndex
 	n.mu.Unlock()
 	return nil
+}
+
+// 返回节点运行状态
+func (n *Node) IsRunning() bool {
+	if n == nil {
+		return false
+	}
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.running
+}
+
+// 通知状态变更（role/term）
+func (n *Node) notifyStateChangeLocked() {
+	if n.stateChangeCh != nil {
+		close(n.stateChangeCh)
+	}
+	n.stateChangeCh = make(chan struct{})
+}
+
+// 注册等待应用某日志索引的通道
+func (n *Node) unregisterApplyWaiter(index uint64, waiter chan ApplyResult) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	waiters := n.applyWaiters[index]
+	for i, ch := range waiters {
+		if ch == waiter {
+			waiters = append(waiters[:i], waiters[i+1:]...)
+			break
+		}
+	}
+	if len(waiters) == 0 {
+		delete(n.applyWaiters, index)
+		return
+	}
+	n.applyWaiters[index] = waiters
 }

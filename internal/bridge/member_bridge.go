@@ -38,7 +38,7 @@ type MemberBridge struct {
 func NewMemberBridge(
 	gossipNode *gossip.Node,
 	ring chash.Ring,
-	transport chash.Transport,
+	chashTransport chash.Transport,
 	remoteClient common.RemoteClient,
 	st storage.Storage,
 ) *MemberBridge {
@@ -50,24 +50,36 @@ func NewMemberBridge(
 		consHashRing:     ring,
 		ctx:              ctx,
 		cancel:           cancel,
-		transport:        transport,
+		transport:        chashTransport,
 		remoteClient:     remoteClient,
 		memberAddrs:      &sync.Map{},
 		st:               st,
 		snapshotCh:       make(chan []gossip.Member, 1),
 		lastAppliedEpoch: ring.Epoch(),
+		running:          false,
 	}
 }
 
+// 启动 MemberBridge 的后台任务
 func (b *MemberBridge) Start() {
 	if b == nil || b.gossipNode == nil || b.consHashRing == nil {
 		return
+	}
+	// 先尝试启动内部节点
+	if b.gossipNode != nil && !b.gossipNode.IsRunning() {
+		b.gossipNode.Start()
 	}
 
 	b.mu.Lock()
 	if b.running {
 		b.mu.Unlock()
 		return
+	}
+	// 支持 Stop 之后再次 Start：Stop 会 cancel ctx，需要重建
+	if b.ctx == nil || b.cancel == nil || b.ctx.Err() != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		b.ctx = ctx
+		b.cancel = cancel
 	}
 	b.running = true
 	b.mu.Unlock()
@@ -93,6 +105,15 @@ func (b *MemberBridge) Stop() {
 	cancel := b.cancel
 	b.running = false
 	b.mu.Unlock()
+
+	// 停止 gossip 节点
+	if b.gossipNode != nil && b.gossipNode.IsRunning() {
+		b.gossipNode.Stop()
+	}
+	// 关闭 transport
+	if b.transport != nil {
+		b.transport.Close()
+	}
 
 	if cancel != nil {
 		cancel()

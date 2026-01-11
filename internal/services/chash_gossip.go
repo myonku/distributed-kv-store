@@ -14,6 +14,10 @@ type CHashKVService struct {
 	st           storage.Storage      // 本地存储
 }
 
+func NewCHashKVService(memberBridge *bridge.MemberBridge, st storage.Storage) KVService {
+	return &CHashKVService{memberBridge: memberBridge, st: st}
+}
+
 func (s *CHashKVService) Put(ctx context.Context, key, value string) error {
 	nodes, err := s.memberBridge.OwnerNodeIDs(key)
 	if err != nil {
@@ -90,4 +94,20 @@ func (s *CHashKVService) Delete(ctx context.Context, key string) error {
 		}
 	}
 	return nil
+}
+
+// 支持在外部启动 MemberBridge
+func (s *CHashKVService) RunService() {
+	if s.memberBridge == nil || s.memberBridge.IsRunning() {
+		return
+	}
+	s.memberBridge.Start()
+}
+
+// 释放资源，停止 MemberBridge
+func (s *CHashKVService) Dispose() {
+	if s.memberBridge == nil || !s.memberBridge.IsRunning() {
+		return
+	}
+	s.memberBridge.Stop()
 }

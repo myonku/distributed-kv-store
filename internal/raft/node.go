@@ -29,17 +29,20 @@ type Node struct {
 
 	logStore       raft_store.RaftLogStore   // 日志存储
 	hardStateStore raft_store.HardStateStore // term / votedFor / commitIndex 等持久化状态
+	sm             raft_store.StateMachine   // 底层状态机（KV 状态机）
+	transport      Transport                 // 网络层
+	applyCh        chan ApplyResult
 
-	sm        raft_store.StateMachine // 底层状态机（KV 状态机）
-	transport Transport               // 网络层
-	applyCh   chan ApplyResult
+	applyWaiters  map[uint64][]chan ApplyResult // 等待应用某日志索引的通道列表
+	stateChangeCh chan struct{}                 // 用于支持等待状态变更的通道
 
 	electionTimeout  time.Duration // 选举超时
 	heartbeatTimeout time.Duration // 心跳间隔
 	electionResetAt  time.Time     // 最近一次收到 leader 心跳/有效 RPC 的时间（用于抑制误触发选举）
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx     context.Context
+	cancel  context.CancelFunc // 取消函数
+	running bool               // 节点是否已启动
 }
 
 // 创建一个新的 Raft 节点实例
@@ -74,8 +77,11 @@ func NewNode(
 		electionTimeout:  time.Duration(cfg.Raft.ElectionTimeoutMs),
 		heartbeatTimeout: time.Duration(cfg.Raft.HeartbeatIntervalMs),
 		electionResetAt:  time.Now(),
+		applyWaiters:     make(map[uint64][]chan ApplyResult),
+		stateChangeCh:    make(chan struct{}),
 		ctx:              ctx,
 		cancel:           cancel,
+		running:          false,
 	}
 	n.applyCh = make(chan ApplyResult, 100)
 	return n
@@ -83,6 +89,26 @@ func NewNode(
 
 // 启动内部 goroutine（选举、日志复制）
 func (n *Node) Start() {
+	if n == nil {
+		return
+	}
+
+	n.mu.Lock()
+	if n.running {
+		n.mu.Unlock()
+		return
+	}
+
+	// 支持 Stop 之后再次 Start：Stop 会 cancel ctx，需要重建
+	if n.ctx == nil || n.cancel == nil || n.ctx.Err() != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		n.ctx = ctx
+		n.cancel = cancel
+	}
+
+	n.running = true
+	n.mu.Unlock()
+
 	// 起选举循环、心跳循环等
 	go n.runElectionLoop()
 	go n.runHeartbeatLoop()
@@ -91,8 +117,25 @@ func (n *Node) Start() {
 
 // 停止节点
 func (n *Node) Stop() {
-	if n == nil || n.cancel == nil {
+	if n == nil {
 		return
 	}
-	n.cancel()
+
+	n.mu.Lock()
+	if !n.running {
+		n.mu.Unlock()
+		return
+	}
+	n.running = false
+	cancel := n.cancel
+	n.mu.Unlock()
+
+	// 关闭 transport
+	if n.transport != nil {
+		n.transport.Close()
+	}
+
+	if cancel != nil {
+		cancel()
+	}
 }

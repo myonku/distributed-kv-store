@@ -15,13 +15,25 @@ func NewStandaloneKVService(st storage.Storage) KVService {
 	return &StandaloneKVService{st: st}
 }
 
+func (s *StandaloneKVService) RunService() {
+	// 单机模式下无需特殊处理
+}
+
+func (s *StandaloneKVService) Dispose() {
+	// 单机模式下无需特殊处理
+}
+
 func (s *StandaloneKVService) Put(ctx context.Context, key, value string) error {
 	cmd := common.Command{
 		Op:    common.OpPut,
 		Key:   key,
 		Value: value,
 	}
-	_, err := s.st.AppendLog(ctx, cmd)
+	idx, err := s.st.AppendLog(ctx, cmd)
+	if err != nil {
+		return err
+	}
+	err = s.st.ApplyLog(ctx, idx)
 	return err
 }
 
@@ -34,6 +46,10 @@ func (s *StandaloneKVService) Delete(ctx context.Context, key string) error {
 		Op:  common.OpDelete,
 		Key: key,
 	}
-	_, err := s.st.AppendLog(ctx, cmd)
+	idx, err := s.st.AppendLog(ctx, cmd)
+	if err != nil {
+		return err
+	}
+	err = s.st.ApplyLog(ctx, idx)
 	return err
 }

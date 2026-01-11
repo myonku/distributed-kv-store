@@ -12,6 +12,7 @@ const (
 	EntryNormal     LogEntryType = iota // 普通日志条目
 	EntryConfChange                     // 配置变更日志条目
 )
+
 const (
 	ConfChangeAddNode ConfChangeType = iota
 	ConfChangeRemoveNode

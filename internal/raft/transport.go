@@ -78,6 +78,7 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 		n.role = Follower
 		n.votedFor = ""
 		n.leaderID = ""
+		n.notifyStateChangeLocked()
 		n.hardStateStore.Save(raft_store.HardState{
 			Term:        n.term,
 			VotedFor:    n.votedFor,
@@ -89,6 +90,7 @@ func (n *Node) HandleAppendEntries(ctx context.Context, req *AppendEntriesReques
 	if req.Term == n.term && n.role != Follower {
 		n.role = Follower
 		n.votedFor = ""
+		n.notifyStateChangeLocked()
 		n.hardStateStore.Save(raft_store.HardState{
 			Term:        n.term,
 			VotedFor:    n.votedFor,
@@ -208,6 +210,7 @@ func (n *Node) HandleRequestVote(ctx context.Context, req *RequestVoteRequest) (
 		n.role = Follower
 		n.votedFor = ""
 		n.leaderID = ""
+		n.notifyStateChangeLocked()
 		n.hardStateStore.Save(raft_store.HardState{
 			Term:        n.term,
 			VotedFor:    n.votedFor,

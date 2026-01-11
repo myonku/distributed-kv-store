@@ -9,7 +9,7 @@ import (
 )
 
 // 启动时引导同步（seed 节点列表来自配置）
-func (n *Node) Join(seeds []configs.ClusterNode) error {
+func (n *Node) Join(seeds *[]configs.ClusterNode) error {
 
 	if n == nil {
 		return errors.ErrResourceNotInit
@@ -31,7 +31,7 @@ func (n *Node) Join(seeds []configs.ClusterNode) error {
 
 	// 连接种子节点
 	var firstSeedID string
-	for _, s := range seeds {
+	for _, s := range *seeds {
 		if n.self != nil && s.ID == n.self.ID {
 			continue
 		}
@@ -100,6 +100,15 @@ func (n *Node) Snapshot() []Member {
 		snapshot = append(snapshot, *m)
 	}
 	return snapshot
+}
+
+func (n *Node) IsRunning() bool {
+	if n == nil {
+		return false
+	}
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.running
 }
 
 // 返回本节点 ID

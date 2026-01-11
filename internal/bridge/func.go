@@ -13,6 +13,15 @@ func (b *MemberBridge) SelfID() string {
 	return b.gossipNode.SelfID()
 }
 
+func (b *MemberBridge) IsRunning() bool {
+	if b == nil {
+		return false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.running
+}
+
 // 根据 key 查询负责节点 ID
 func (b *MemberBridge) OwnerNodeID(key string) (nodeID string, ok bool, err error) {
 	if b == nil || b.consHashRing == nil {

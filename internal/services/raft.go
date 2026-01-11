@@ -75,3 +75,19 @@ func (s *RaftKVService) Get(ctx context.Context, key string) (string, error) {
 	}
 	return s.st.Get(ctx, key)
 }
+
+// 支持在外部启动 Node
+func (s *RaftKVService) RunService() {
+	if s.node == nil || s.node.IsRunning() {
+		return
+	}
+	s.node.Start()
+}
+
+// 释放资源，停止 Raft 节点
+func (s *RaftKVService) Dispose() {
+	if s.node == nil || !s.node.IsRunning() {
+		return
+	}
+	s.node.Stop()
+}

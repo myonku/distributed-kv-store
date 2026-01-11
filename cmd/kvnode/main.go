@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/api"
 	"distributed-kv-store/internal/util"
+
+	"google.golang.org/grpc"
 )
 
 // kvnode 启动入口
@@ -31,21 +34,38 @@ func main() {
 	initGlobalLogger(configPath, appCfg)
 
 	// 根据运行模式选择 KVService 实现
-	_, svc, raftNode, err := buildKVService(appCfg)
-
+	st, svc, raftNode, gossipNode, err := buildKVService(appCfg)
 	if err != nil {
 		log.Fatalf("build kv service failed: %v", err)
 	}
 
-	// 非单机模式下，还需启动 Raft 节点相关的 gRPC 服务
-	if appCfg.Mode == configs.ModeRaft {
-		if err := startRaftGRPCServer(appCfg, raftNode); err != nil {
-			return
+	// 创建并启动 gRPC 服务器
+	grpcServers, grpcAddrs, err := buildGRPCServer(appCfg, st, raftNode, gossipNode)
+	if err != nil {
+		log.Fatalf("build grpc server failed: %v", err)
+	}
+	for i, grpcServer := range grpcServers {
+		addr := grpcAddrs[i]
+		lis, err := net.Listen("tcp", addr)
+		if err != nil {
+			log.Fatalf("listen %s: %v", addr, err)
 		}
+		go func(srv *grpc.Server, lis net.Listener) {
+			if err := srv.Serve(lis); err != nil {
+				log.Printf("grpc server stopped: %v", err)
+			}
+		}(grpcServer, lis)
+		log.Printf("gRPC server started at %s", addr)
 	}
 
+	// 启动 service 内部资源（如 Raft 节点、Gossip 节点等）
+	svc.RunService()
+
+	// 启动 HTTP API 服务器
 	ctx, cancel := signalContext()
 	defer cancel()
+	defer st.Close()
+	defer svc.Dispose()
 
 	if err := api.StartHTTPServer(ctx, appCfg.Self.ClientAddress, svc); err != nil {
 		log.Fatalf("http server error: %v", err)
