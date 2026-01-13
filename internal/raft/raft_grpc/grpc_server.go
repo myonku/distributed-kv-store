@@ -45,23 +45,23 @@ func (s *RaftGRPCServer) AppendEntries(ctx context.Context, req *AppendEntriesRe
 			if len(e.CmdData) > 0 {
 				var cmd common.Command
 				if err := json.Unmarshal(e.CmdData, &cmd); err != nil {
-					return nil, fmt.Errorf("unmarshal command: %w", err)
+					return nil, errors.Error{Type: errors.InternalError, Info: fmt.Sprintf("unmarshal command: %v", err)}
 				}
 				internalEntry.Cmd = cmd
 			}
 
 		case common.EntryConfChange:
 			if len(e.Conf) == 0 {
-				return nil, fmt.Errorf("missing conf for conf-change entry (index=%d)", e.Index)
+				return nil, errors.Error{Type: errors.InvalidArgument, Info: fmt.Sprintf("missing conf for conf-change entry (index=%d)", e.Index)}
 			}
 			var cc common.ClusterConfigChange
 			if err := json.Unmarshal(e.Conf, &cc); err != nil {
-				return nil, fmt.Errorf("unmarshal conf change: %w", err)
+				return nil, errors.Error{Type: errors.InternalError, Info: fmt.Sprintf("unmarshal conf change: %v", err)}
 			}
 			internalEntry.Conf = &cc
 
 		default:
-			return nil, errors.ErrUnkownEntryType
+			return nil, errors.Error{Type: errors.InvalidArgument, Info: "invalid log entry type"}
 		}
 
 		internalReq.Entries = append(internalReq.Entries, internalEntry)

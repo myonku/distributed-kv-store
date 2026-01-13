@@ -80,7 +80,7 @@ func (r *HashRing) RebuildWithPlan(nodes []Node) (plan RebalancePlan, err error)
 
 			// 确保新 ring 对该 vnode 有 owner
 			if _, ok := newOwners[cur]; !ok {
-				return RebalancePlan{}, errors.ErrNoFoundNewOwner
+				return RebalancePlan{}, errors.Error{Type: errors.InternalError, Info: "new ring missing vnode owner"}
 			}
 
 			newSet := LookupOwners(newKeys, newOwners, start, newRF)

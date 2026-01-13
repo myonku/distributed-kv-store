@@ -25,7 +25,7 @@ func (r *HashRing) GetNode(key string) (nodeID string, ok bool, err error) {
 	owner, exists := r.vnodeOwners[r.ringKeys[idx]]
 	if !exists {
 		// 理论上不会发生
-		return "", false, errors.ErrNoVNodeOwner
+		return "", false, errors.Error{Type: errors.ObjectNotFound, Info: "vnode owner not found"}
 	}
 	return owner, true, nil
 }
@@ -58,7 +58,7 @@ func (r *HashRing) GetNodes(key string) (nodeIDs []string, err error) {
 		owner, exists := r.vnodeOwners[r.ringKeys[idx]]
 		if !exists {
 			// 理论上不会发生
-			return nil, errors.ErrNoVNodeOwner
+			return nil, errors.Error{Type: errors.ObjectNotFound, Info: "vnode owner not found"}
 		}
 		if _, ok := seen[owner]; !ok {
 			seen[owner] = struct{}{}

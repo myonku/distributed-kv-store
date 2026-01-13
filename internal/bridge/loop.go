@@ -98,7 +98,7 @@ func (b *MemberBridge) enqueueSnapshot(snapshot []gossip.Member) {
 // 执行单个数据迁移计划
 func (m *MemberBridge) excuteMovePlan(epoch uint64, move chash.MoveRange) error {
 	if m == nil || m.transport == nil || m.st == nil {
-		return errors.ErrResourceNotInit
+		return errors.Error{Type: errors.ImportError, Info: "member bridge not initialized"}
 	}
 	selfID := m.gossipNode.SelfID()
 	// 如果 双方节点都不是本节点 则跳过

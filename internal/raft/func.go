@@ -16,10 +16,10 @@ func (n *Node) LinearizableRead(ctx context.Context) error {
 	}
 
 	if !n.IsLeader() {
-		return errors.ErrNotLeader
+		return errors.Error{Type: errors.ConditionError, Info: "not leader"}
 	}
 	if n.transport == nil || n.logStore == nil {
-		return errors.ErrResourceNotInit
+		return errors.Error{Type: errors.ImportError, Info: "resource not initialized"}
 	}
 
 	if err := n.ensureCommittedInCurrentTerm(ctx); err != nil {
@@ -45,16 +45,16 @@ func (n *Node) Propose(ctx context.Context, cmd common.Command) (ApplyResult, er
 	}
 
 	if !n.IsLeader() {
-		return ApplyResult{}, errors.ErrNotLeader
+		return ApplyResult{}, errors.Error{Type: errors.ConditionError, Info: "not leader"}
 	}
 	if n.transport == nil || n.logStore == nil {
-		return ApplyResult{}, errors.ErrResourceNotInit
+		return ApplyResult{}, errors.Error{Type: errors.ImportError, Info: "resource not initialized"}
 	}
 
 	n.mu.Lock()
 	if n.role != Leader {
 		n.mu.Unlock()
-		return ApplyResult{}, errors.ErrNotLeader
+		return ApplyResult{}, errors.Error{Type: errors.ConditionError, Info: "not leader"}
 	}
 	term := n.term
 	n.mu.Unlock()
@@ -79,10 +79,7 @@ func (n *Node) Propose(ctx context.Context, cmd common.Command) (ApplyResult, er
 
 	// 等待该日志被 commit 并应用到状态机
 	if err := n.waitAppliedTo(ctx, term, newIndex); err != nil {
-		if err == errors.ErrNotLeader {
-			return ApplyResult{}, err
-		}
-		return ApplyResult{Index: newIndex, Term: term, Err: err}, err
+		return ApplyResult{}, err
 	}
 	return ApplyResult{Index: newIndex, Term: term, Err: nil}, nil
 }
@@ -95,16 +92,16 @@ func (n *Node) ProposeConfChange(ctx context.Context, cc common.ClusterConfigCha
 	}
 
 	if !n.IsLeader() {
-		return ApplyResult{}, errors.ErrNotLeader
+		return ApplyResult{}, errors.Error{Type: errors.ConditionError, Info: "not leader"}
 	}
 	if n.transport == nil || n.logStore == nil {
-		return ApplyResult{}, errors.ErrResourceNotInit
+		return ApplyResult{}, errors.Error{Type: errors.ImportError, Info: "resource not initialized"}
 	}
 
 	n.mu.Lock()
 	if n.role != Leader {
 		n.mu.Unlock()
-		return ApplyResult{}, errors.ErrNotLeader
+		return ApplyResult{}, errors.Error{Type: errors.ConditionError, Info: "not leader"}
 	}
 	term := n.term
 	n.mu.Unlock()
@@ -130,10 +127,7 @@ func (n *Node) ProposeConfChange(ctx context.Context, cc common.ClusterConfigCha
 
 	// 等待该配置变更日志被 commit 并应用（applyConfChange 执行完成）
 	if err := n.waitAppliedTo(ctx, term, newIndex); err != nil {
-		if err == errors.ErrNotLeader {
-			return ApplyResult{}, err
-		}
-		return ApplyResult{Index: newIndex, Term: term, Err: err}, err
+		return ApplyResult{}, err
 	}
 	return ApplyResult{Index: newIndex, Term: term, Err: nil}, nil
 }
@@ -148,7 +142,7 @@ func (n *Node) ensureCommittedInCurrentTerm(ctx context.Context) error {
 	n.mu.RLock()
 	if n.role != Leader {
 		n.mu.RUnlock()
-		return errors.ErrNotLeader
+		return errors.Error{Type: errors.ConditionError, Info: "not leader"}
 	}
 	term := n.term
 	commitIndex := n.commitIndex
@@ -176,7 +170,7 @@ func (n *Node) quorumHeartbeat(ctx context.Context) error {
 	n.mu.RLock()
 	if n.role != Leader {
 		n.mu.RUnlock()
-		return errors.ErrNotLeader
+		return errors.Error{Type: errors.ConditionError, Info: "not leader"}
 	}
 	term := n.term
 	leaderID := n.id
@@ -246,7 +240,7 @@ func (n *Node) quorumHeartbeat(ctx context.Context) error {
 		case r := <-ch:
 			replies--
 			if r.Term > term {
-				return errors.ErrNotLeader
+				return errors.Error{Type: errors.ConditionError, Info: "not leader"}
 			}
 			if r.Success {
 				success++
@@ -257,7 +251,7 @@ func (n *Node) quorumHeartbeat(ctx context.Context) error {
 	if success >= need {
 		return nil
 	}
-	return errors.ErrQuorumNotReached
+	return errors.Error{Type: errors.ConditionError, Info: "quorum not reached"}
 }
 
 // 等待状态机应用到指定的日志索引，同时确保仍为当前任期的 Leader
@@ -271,7 +265,7 @@ func (n *Node) waitAppliedTo(ctx context.Context, term uint64, index uint64) err
 		n.mu.Lock()
 		if n.role != Leader || n.term != term {
 			n.mu.Unlock()
-			return errors.ErrNotLeader
+			return errors.Error{Type: errors.ConditionError, Info: "not leader"}
 		}
 		if n.lastApplied >= index {
 			n.mu.Unlock()
@@ -303,7 +297,7 @@ func (n *Node) waitAppliedTo(ctx context.Context, term uint64, index uint64) err
 			currentTerm := n.term
 			n.mu.RUnlock()
 			if role != Leader || currentTerm != term {
-				return errors.ErrNotLeader
+				return errors.Error{Type: errors.ConditionError, Info: "not leader"}
 			}
 			return r.Err
 		}

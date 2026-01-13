@@ -25,7 +25,7 @@ func (sm *KVStateMachine) Apply(index uint64, cmd common.Command) error {
 	}
 	if idx != index {
 		// 正常情况下不应发生
-		return errors.ErrLogIndexMismatch
+		return errors.Error{Type: errors.IndexError, Info: "log index mismatch"}
 	}
 	return sm.St.ApplyLog(context.TODO(), idx)
 }

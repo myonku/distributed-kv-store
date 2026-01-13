@@ -27,7 +27,7 @@ func (s *RaftKVService) Put(ctx context.Context, key, value string) error {
 			// 转发请求到 Leader 节点
 			return s.remoteClient.Put(ctx, currentLeader.ClientAddress, key, value)
 		} else {
-			return errors.ErrLeaderDoesNotExist
+			return errors.Error{Type: errors.ObjectNotFound, Info: "leader does not exist"}
 		}
 	}
 
@@ -47,7 +47,7 @@ func (s *RaftKVService) Delete(ctx context.Context, key string) error {
 			// 转发请求到 Leader 节点
 			return s.remoteClient.Delete(ctx, currentLeader.ClientAddress, key)
 		} else {
-			return errors.ErrLeaderDoesNotExist
+			return errors.Error{Type: errors.ObjectNotFound, Info: "leader does not exist"}
 		}
 	}
 
@@ -66,7 +66,7 @@ func (s *RaftKVService) Get(ctx context.Context, key string) (string, error) {
 			// 转发请求到 Leader 节点
 			return s.remoteClient.Get(ctx, currentLeader.ClientAddress, key)
 		} else {
-			return "", errors.ErrLeaderDoesNotExist
+			return "", errors.Error{Type: errors.ObjectNotFound, Info: "leader does not exist"}
 		}
 	}
 	// 确保线性一致性读

@@ -1,25 +1,30 @@
 package errors
 
-import err "errors"
+import (
+	"fmt"
+)
 
-var (
-	ErrNotLeader             = err.New("not leader")                   // 当前节点不是 Leader
-	ErrLeaderDoesNotExist    = err.New("leader does not exist")        // 当前没有 Leader 节点
-	ErrClientNotExist        = err.New("client does not exist")        // 指定的客户端不存在
-	ErrUnSupportedMode       = err.New("unsupported mode")             // 不支持的模式
-	ErrLogIndexMismatch      = err.New("log index mismatch")           // 日志索引不匹配
-	ErrNoResourceRefrenced   = err.New("no resource referenced")       // 未引用任何资源
-	ErrResourceNotInit       = err.New("resource not initialized")     // 资源未初始化
-	ErrInvalidConfChange     = err.New("invalid configuration change") // 无效的配置变更
-	ErrUnkownEntryType       = err.New("unknown entry type")           // 未知的日志条目类型
-	ErrQuorumNotReached      = err.New("quorum not reached")           // 未达到多数派
-	ErrNoAvailablePeer       = err.New("no available peer")            // 没有可用的 peer
-	ErrInvalidArgument       = err.New("invalid argument")             // 无效的参数
-	ErrNoVNodeOwner          = err.New("no vnode owner")               // 没有虚拟节点的拥有者
-	ErrNoFoundNewOwner       = err.New("no found new owner")           // 未找到新的拥有者
-	ErrPushBatchFailed       = err.New("push batch failed")            // PushBatch 操作失败
-	ErrReplicateFailed       = err.New("replicate failed")             // Replicate 操作失败
-	ErrInvalidCommandOp      = err.New("invalid command operation")    // 无效的命令操作
-	ErrKeyNotFound           = err.New("key not found")                // 未找到指定的键
-	ErrCreateTransportFailed = err.New("create transport failed")      // 创建传输层失败
+type ErrorType string
+
+type Error struct {
+	Type ErrorType
+	Info string
+}
+
+func (e Error) Error() string {
+	return fmt.Sprintf("Error - Type: %s, Info: %s", e.Type, e.Info)
+}
+
+const (
+	KeyError        ErrorType = "KeyError"        // 由特定的键值引发的错误
+	AttributeError  ErrorType = "AttributeError"  // 由属性或配置引发的错误
+	IndexError      ErrorType = "IndexError"      // 由索引操作引发的错误
+	NetworkError    ErrorType = "NetworkError"    // 由网络通信引发的错误
+	ImportError     ErrorType = "ImportError"     // 引用的资源不合法或未找到引发的错误
+	InvalidArgument ErrorType = "InvalidArgument" // 由无效参数引发的错误
+	ObjectNotFound  ErrorType = "ObjectNotFound"  // 由未找到的对象引发的错误
+	OSError         ErrorType = "OSError"         // 由操作系统相关操作引发的错误
+	ConditionError  ErrorType = "ConditionError"  // 特定条件不满足时引发的错误
+	InternalError   ErrorType = "InternalError"   // 内部逻辑引发的错误
+	OperationError  ErrorType = "OperationError"  // 操作执行失败引发的错误
 )

@@ -9,13 +9,13 @@ import (
 // 将一个新节点加入本地成员视图，并建立到该节点的 transport 连接
 func (n *Node) AddMember(peer configs.ClusterNode) error {
 	if n == nil {
-		return errors.ErrResourceNotInit
+		return errors.Error{Type: errors.ImportError, Info: "node not initialized"}
 	}
 	if peer.ID == "" {
-		return errors.ErrInvalidArgument
+		return errors.Error{Type: errors.InvalidArgument, Info: "invalid peer ID"}
 	}
 	if n.self != nil && peer.ID == n.self.ID {
-		return errors.ErrInvalidArgument
+		return errors.Error{Type: errors.InvalidArgument, Info: "cannot add self as member"}
 	}
 
 	// 先建立连接（生产实现可做重试/幂等）
@@ -67,13 +67,13 @@ func (n *Node) AddMember(peer configs.ClusterNode) error {
 // 将成员标记为 Dead，并移除 transport 连接
 func (n *Node) RemoveMember(peerID string) error {
 	if n == nil {
-		return errors.ErrResourceNotInit
+		return errors.Error{Type: errors.ImportError, Info: "node not initialized"}
 	}
 	if peerID == "" {
-		return errors.ErrInvalidArgument
+		return errors.Error{Type: errors.InvalidArgument, Info: "invalid peer ID"}
 	}
 	if n.self != nil && peerID == n.self.ID {
-		return errors.ErrInvalidArgument
+		return errors.Error{Type: errors.InvalidArgument, Info: "cannot remove self as member"}
 	}
 
 	now := time.Now().UnixNano()

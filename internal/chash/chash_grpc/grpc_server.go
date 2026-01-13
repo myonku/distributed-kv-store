@@ -21,7 +21,7 @@ func NewChashGRPCServer(st storage.Storage) *ChashGRPCServer {
 // 处理 PullRange RPC 调用
 func (s *ChashGRPCServer) PullRange(ctx context.Context, req *PullRangeRequest) (*PullRangeResponse, error) {
 	if s.st == nil {
-		return &PullRangeResponse{}, errors.ErrResourceNotInit
+		return &PullRangeResponse{}, errors.Error{Type: errors.ImportError, Info: "resource not initialized"}
 	}
 	// PullRange 是“源节点读数据”的操作：为了支持失败重试/重复拉取，这里不做 moveID 去重
 	kvs, err := s.st.GetHashRange(ctx, req.StartHash, req.EndHash)
@@ -41,7 +41,7 @@ func (s *ChashGRPCServer) PullRange(ctx context.Context, req *PullRangeRequest) 
 // 处理 PushBatch RPC 调用
 func (s *ChashGRPCServer) PushBatch(ctx context.Context, req *PushBatchRequest) (*PushBatchResponse, error) {
 	if s.st == nil {
-		return &PushBatchResponse{Ok: false}, errors.ErrResourceNotInit
+		return &PushBatchResponse{Ok: false}, errors.Error{Type: errors.ImportError, Info: "resource not initialized"}
 	}
 	// moveID 已存在则表示该迁移已完成，直接返回 OK（幂等）
 	if exists, err := s.st.GetMoveRangeRecord(ctx, req.MoveId); err != nil {
@@ -72,7 +72,7 @@ func (s *ChashGRPCServer) PushBatch(ctx context.Context, req *PushBatchRequest) 
 // 处理 Replicate RPC 调用
 func (s *ChashGRPCServer) Replicate(ctx context.Context, req *ReplicateRequest) (*ReplicateResponse, error) {
 	if s.st == nil {
-		return &ReplicateResponse{Ok: false}, errors.ErrResourceNotInit
+		return &ReplicateResponse{Ok: false}, errors.Error{Type: errors.ImportError, Info: "resource not initialized"}
 	}
 	cmds := make([]common.Command, 0, len(req.Cmds))
 	for _, pbCmd := range req.Cmds {
@@ -83,7 +83,7 @@ func (s *ChashGRPCServer) Replicate(ctx context.Context, req *ReplicateRequest) 
 		case CommandOperation_OP_DELETE:
 			op = common.OpDelete
 		default:
-			return &ReplicateResponse{Ok: false}, errors.ErrInvalidCommandOp
+			return &ReplicateResponse{Ok: false}, errors.Error{Type: errors.InvalidArgument, Info: "invalid command operation"}
 		}
 		cmds = append(cmds, common.Command{
 			Op:    op,

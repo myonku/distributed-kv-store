@@ -12,7 +12,7 @@ import (
 func (n *Node) Join(seeds *[]configs.ClusterNode) error {
 
 	if n == nil {
-		return errors.ErrResourceNotInit
+		return errors.Error{Type: errors.ImportError, Info: "node not initialized"}
 	}
 
 	// 初始化本地视图
@@ -154,7 +154,7 @@ func (n *Node) Events() <-chan Event {
 func (n *Node) probeOnce(ctx context.Context) error {
 
 	if n == nil || n.transport == nil || n.self == nil {
-		return errors.ErrResourceNotInit
+		return errors.Error{Type: errors.ImportError, Info: "node not initialized"}
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -268,7 +268,7 @@ func (n *Node) reapSuspectsAndDeads(ctx context.Context) {
 func (n *Node) gossipOnce(ctx context.Context) error {
 
 	if n == nil || n.transport == nil || n.self == nil {
-		return errors.ErrResourceNotInit
+		return errors.Error{Type: errors.ImportError, Info: "node not initialized"}
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -315,7 +315,7 @@ func (n *Node) gossipOnce(ctx context.Context) error {
 // 应用来自 PushPull 响应的 Delta 更新
 func (n *Node) applyDelta(ctx context.Context, delta []Member) error {
 	if n == nil {
-		return errors.ErrResourceNotInit
+		return errors.Error{Type: errors.ImportError, Info: "node not initialized"}
 	}
 	if len(delta) == 0 {
 		return nil
@@ -434,7 +434,7 @@ func (n *Node) pickOnePeerID() (string, error) {
 		candidates = append(candidates, id)
 	}
 	if len(candidates) == 0 {
-		return "", errors.ErrNoAvailablePeer
+		return "", errors.Error{Type: errors.ConditionError, Info: "no available peer"}
 	}
 	return candidates[rand.IntN(len(candidates))], nil
 }
@@ -445,7 +445,7 @@ func (n *Node) pickPeers(fanout int) ([]string, error) {
 	defer n.mu.RUnlock()
 
 	if fanout <= 0 {
-		return nil, errors.ErrInvalidArgument
+		return nil, errors.Error{Type: errors.InvalidArgument, Info: "invalid fanout"}
 	}
 	var candidates []string
 	for id, m := range n.members {
@@ -458,7 +458,7 @@ func (n *Node) pickPeers(fanout int) ([]string, error) {
 		candidates = append(candidates, id)
 	}
 	if len(candidates) == 0 {
-		return nil, errors.ErrNoAvailablePeer
+		return nil, errors.Error{Type: errors.ConditionError, Info: "no available peer"}
 	}
 
 	for i := len(candidates) - 1; i > 0; i-- {

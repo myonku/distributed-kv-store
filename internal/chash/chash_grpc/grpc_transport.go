@@ -33,7 +33,7 @@ func (t *GRPCTransport) PushBatch(ctx context.Context, moveID uint32, to string,
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
 	if !ok {
-		return errors.ErrClientNotExist
+		return errors.Error{Type: errors.ObjectNotFound, Info: "client does not exist"}
 	}
 	pbReq := &PushBatchRequest{
 		MoveId: moveID,
@@ -50,7 +50,7 @@ func (t *GRPCTransport) PushBatch(ctx context.Context, moveID uint32, to string,
 		return err
 	}
 	if !resp.Ok {
-		return errors.ErrPushBatchFailed
+		return errors.Error{Type: errors.OperationError, Info: "push batch failed"}
 	}
 	return nil
 
@@ -62,7 +62,7 @@ func (t *GRPCTransport) PullRange(ctx context.Context, moveID uint32, to string,
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
 	if !ok {
-		return nil, errors.ErrClientNotExist
+		return nil, errors.Error{Type: errors.ObjectNotFound, Info: "client does not exist"}
 	}
 	pbReq := &PullRangeRequest{
 		MoveId:    moveID,
@@ -89,7 +89,7 @@ func (t *GRPCTransport) Replicate(ctx context.Context, to string, cmds *[]common
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
 	if !ok {
-		return errors.ErrClientNotExist
+		return errors.Error{Type: errors.ObjectNotFound, Info: "client does not exist"}
 	}
 
 	pbReq := &ReplicateRequest{
@@ -103,7 +103,7 @@ func (t *GRPCTransport) Replicate(ctx context.Context, to string, cmds *[]common
 		case common.OpDelete:
 			pbOp = CommandOperation_OP_DELETE
 		default:
-			return errors.ErrInvalidCommandOp
+			return errors.Error{Type: errors.InvalidArgument, Info: "invalid command operation"}
 		}
 		pbReq.Cmds = append(pbReq.Cmds, &Command{
 			Op:    pbOp,
@@ -116,7 +116,7 @@ func (t *GRPCTransport) Replicate(ctx context.Context, to string, cmds *[]common
 		return err
 	}
 	if !resp.Ok {
-		return errors.ErrReplicateFailed
+		return errors.Error{Type: errors.OperationError, Info: "replicate failed"}
 	}
 	return nil
 }

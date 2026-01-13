@@ -81,6 +81,7 @@ func (n *Node) Start() {
 
 	n.running = true
 	n.mu.Unlock()
+
 	// 初始化节点内部状态，引导同步
 	go n.Join(n.seeds)
 

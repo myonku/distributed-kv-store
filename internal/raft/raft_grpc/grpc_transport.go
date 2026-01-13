@@ -30,7 +30,7 @@ func NewGRPCTransport(peers []configs.ClusterNode) (raft.Transport, error) {
 		options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())} // TODO: 配置凭证/超时等
 		conn, err := grpc.NewClient(p.RaftGRPCAddress, options...)
 		if err != nil {
-			return nil, fmt.Errorf("dial %s: %w", p.RaftGRPCAddress, err)
+			return nil, errors.Error{Type: errors.InternalError, Info: fmt.Sprintf("dial %s: %v", p.RaftGRPCAddress, err)}
 		}
 		t.conns[p.ID] = conn
 		t.cli[p.ID] = NewRaftServiceClient(conn)
@@ -48,7 +48,7 @@ func (t *GRPCTransport) SendAppendEntries(
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
 	if !ok {
-		return nil, errors.ErrClientNotExist
+		return nil, errors.Error{Type: errors.ObjectNotFound, Info: "client does not exist"}
 	}
 
 	pbReq := &AppendEntriesRequest{
@@ -64,14 +64,14 @@ func (t *GRPCTransport) SendAppendEntries(
 	for _, e := range req.Entries {
 		cmdData, err := json.Marshal(e.Cmd)
 		if err != nil {
-			return nil, fmt.Errorf("marshal command: %w", err)
+			return nil, errors.Error{Type: errors.InternalError, Info: "marshal command: " + err.Error()}
 		}
 
 		var confData []byte
 		if e.Conf != nil {
 			confData, err = json.Marshal(e.Conf)
 			if err != nil {
-				return nil, fmt.Errorf("marshal conf: %w", err)
+				return nil, errors.Error{Type: errors.InternalError, Info: "marshal conf: " + err.Error()}
 			}
 		}
 
@@ -106,7 +106,7 @@ func (t *GRPCTransport) SendRequestVote(
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
 	if !ok {
-		return nil, errors.ErrClientNotExist
+		return nil, errors.Error{Type: errors.ObjectNotFound, Info: "client does not exist"}
 	}
 
 	pbReq := &RequestVoteRequest{
@@ -142,7 +142,7 @@ func (t *GRPCTransport) AddPeer(peer configs.ClusterNode, options ...grpc.DialOp
 	}
 	conn, err := grpc.NewClient(peer.RaftGRPCAddress, options...)
 	if err != nil {
-		return fmt.Errorf("dial %s: %w", peer.RaftGRPCAddress, err)
+		return errors.Error{Type: errors.InternalError, Info: fmt.Sprintf("dial %s: %v", peer.RaftGRPCAddress, err)}
 	}
 	t.conns[peer.ID] = conn
 	t.cli[peer.ID] = NewRaftServiceClient(conn)

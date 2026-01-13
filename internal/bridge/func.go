@@ -25,7 +25,7 @@ func (b *MemberBridge) IsRunning() bool {
 // 根据 key 查询负责节点 ID
 func (b *MemberBridge) OwnerNodeID(key string) (nodeID string, ok bool, err error) {
 	if b == nil || b.consHashRing == nil {
-		return "", false, errors.ErrResourceNotInit
+		return "", false, errors.Error{Type: errors.ImportError, Info: "consistency hash ring not initialized"}
 	}
 	return b.consHashRing.GetNode(key)
 }
@@ -33,7 +33,7 @@ func (b *MemberBridge) OwnerNodeID(key string) (nodeID string, ok bool, err erro
 // 根据 key 查询负责节点 ID 列表
 func (b *MemberBridge) OwnerNodeIDs(key string) (nodeIDs []string, err error) {
 	if b == nil || b.consHashRing == nil {
-		return []string{}, errors.ErrResourceNotInit
+		return []string{}, errors.Error{Type: errors.ImportError, Info: "consistency hash ring not initialized"}
 	}
 	return b.consHashRing.GetNodes(key)
 }

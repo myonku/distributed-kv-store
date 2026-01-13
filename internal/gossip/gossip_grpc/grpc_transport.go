@@ -30,7 +30,7 @@ func NewGRPCTransport(peers []configs.ClusterNode) (gossip.Transport, error) {
 		options := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 		conn, err := grpc.NewClient(p.GossipGRPCAddress, options...)
 		if err != nil {
-			return nil, fmt.Errorf("dial %s: %w", p.GossipGRPCAddress, err)
+			return nil, errors.Error{Type: errors.InternalError, Info: fmt.Sprintf("dial %s: %v", p.GossipGRPCAddress, err)}
 		}
 		t.conns[p.ID] = conn
 		t.cli[p.ID] = NewGossipServiceClient(conn)
@@ -45,7 +45,7 @@ func (t *GRPCTransport) Ping(ctx context.Context, to string, req *gossip.PingReq
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
 	if !ok {
-		return nil, errors.ErrClientNotExist
+		return nil, errors.Error{Type: errors.ObjectNotFound, Info: "client does not exist"}
 	}
 
 	pbReq := &PingRequest{
@@ -75,7 +75,7 @@ func (t *GRPCTransport) PushPull(
 	client, ok := t.cli[to]
 	t.mu.RUnlock()
 	if !ok {
-		return nil, errors.ErrClientNotExist
+		return nil, errors.Error{Type: errors.ObjectNotFound, Info: "client does not exist"}
 	}
 
 	pbReq := &PushPullRequest{FromId: req.FromID}
@@ -147,7 +147,7 @@ func (t *GRPCTransport) AddPeer(peer configs.ClusterNode, options ...grpc.DialOp
 	}
 	conn, err := grpc.NewClient(peer.GossipGRPCAddress, options...)
 	if err != nil {
-		return fmt.Errorf("dial %s: %w", peer.GossipGRPCAddress, err)
+		return errors.Error{Type: errors.InternalError, Info: fmt.Sprintf("dial %s: %v", peer.GossipGRPCAddress, err)}
 	}
 
 	t.conns[peer.ID] = conn

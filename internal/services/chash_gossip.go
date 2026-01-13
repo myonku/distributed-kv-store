@@ -65,7 +65,7 @@ func (s *CHashKVService) Get(ctx context.Context, key string) (string, error) {
 			}
 		}
 	}
-	return "", errors.ErrKeyNotFound
+	return "", errors.Error{Type: errors.ObjectNotFound, Info: "key not found"}
 }
 
 func (s *CHashKVService) Delete(ctx context.Context, key string) error {
