@@ -23,10 +23,9 @@ func NewAppCommandExecutor(raftNode *raft.Node, gossipNode *gossip.Node) *AppCom
 // Help 返回帮助信息
 func (e *AppCommandExecutor) Help() string {
 	lines := []string{
-		"help                           show this help",
-		"exit|quit                      stop process",
-		"status                         show basic runtime status (stub)",
-		"members                        show membership view (stub)",
+		"help|-h                        show this help",
+		"exit|-q                        stop process",
+		"status|-s                      show basic runtime status (stub)",
 		"add <id>                       add client node (stub)",
 		"rm <id>                        remove client node (stub)",
 	}
@@ -41,11 +40,8 @@ func (e *AppCommandExecutor) Execute(ctx context.Context, cmd ParsedCommand) err
 	}
 
 	switch cmd.Name {
-	case "status":
+	case "status", "-s":
 		// TODO: 输出更完整的运行状态（如 mode、leader、members、ring epoch 等）
-		return nil
-	case "members":
-		// TODO: 打印成员视图；后续可以读取 e.gossipNode.Snapshot()
 		return nil
 	case "add":
 		if len(cmd.Args) < 1 {

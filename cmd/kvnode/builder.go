@@ -19,7 +19,9 @@ import (
 )
 
 // 根据配置的运行模式构造对应的 KVService 实现，返回部分引用和清理函数
-func buildKVService(appCfg *configs.AppConfig) (storage.Storage, services.KVService, *raft.Node, *gossip.Node, func(), error) {
+func buildKVService(
+	appCfg *configs.AppConfig,
+) (storage.Storage, services.KVService, *raft.Node, *gossip.Node, func(), error) {
 	cleanup := func() {}
 	// Storage 统一创建，全局管理
 	st, err := storage.NewStorage(appCfg.Storage)
@@ -68,7 +70,7 @@ func buildKVService(appCfg *configs.AppConfig) (storage.Storage, services.KVServ
 	}
 }
 
-// Raft 模式下构造 RaftKVService，返回 Raft 节点引用
+// 主从模式下构造 RaftKVService，返回 Raft 节点引用
 func buildRaftKVService(
 	appCfg *configs.AppConfig,
 	st storage.Storage,

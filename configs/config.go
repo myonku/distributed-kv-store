@@ -1,11 +1,20 @@
 package configs
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/BurntSushi/toml"
 )
 
-type Mode string // 运行模式：Raft 强一致复制，或基于一致性哈希的去中心化分片
+type Mode string        // 运行模式：Raft 强一致复制，或基于一致性哈希的去中心化分片
+type StorageMode string // 底层存储模式：基于内存或持久化
 type MembershipType string
+
+const (
+	StorageModeMemory StorageMode = "memory"
+	StorageModeSQLite StorageMode = "sqlite"
+)
 
 const (
 	MembershipStatic         MembershipType = "static"
@@ -57,9 +66,12 @@ type ClusterNode struct {
 	Weight            int    // 只在一致性哈希模式使用，表示环节点的权重
 }
 
-// 底层存储配置，形式待定
+// 底层存储配置
 type StorageConfig struct {
-	Path string
+	Mode       StorageMode `toml:"mode"`        // 存储模式：memory | sqlite（为空时由 NewStorage 推断）
+	Path       string      `toml:"path"`        // sqlite 下可为目录或具体 db 文件；相对路径以 settings.toml 所在目录为基准
+	SQLiteFile string      `toml:"sqlite_file"` // sqlite 下当 Path 为目录/为空时使用的默认文件名
+	BaseDir    string      `toml:"-"`           // 用于解析相对路径的基准目录，不从 toml 加载
 }
 
 // 日志配置
@@ -90,6 +102,17 @@ func ReadConfig(path string) (*AppConfig, error) {
 	appConfig := &AppConfig{}
 	if _, err := toml.DecodeFile(path, appConfig); err != nil {
 		return nil, err
+	}
+
+	baseDir := filepath.Dir(path)
+	if baseDir == "." {
+		if wd, err := os.Getwd(); err == nil {
+			baseDir = wd
+		}
+	}
+	appConfig.Storage.BaseDir = baseDir
+	if appConfig.Storage.SQLiteFile == "" {
+		appConfig.Storage.SQLiteFile = "data.db"
 	}
 	return appConfig, nil
 }

@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/common"
 )
 
@@ -28,8 +27,7 @@ type memoryStorage struct {
 	raftHardState *common.RaftHardState // 当前 Raft 硬状态（如未设置则为 nil）
 }
 
-// 返回新的内存存储实例的引用
-func NewStorage(cfg configs.StorageConfig) (Storage, error) {
+func newMemoryStorage() *memoryStorage {
 	return &memoryStorage{
 		data:             make(map[string]string),
 		kvLogs:           make([]common.Command, 0),
@@ -37,7 +35,7 @@ func NewStorage(cfg configs.StorageConfig) (Storage, error) {
 		moveRangeRecords: make(map[uint32]string),
 		raftLogs:         make([]common.RaftLogEntry, 0),
 		raftHardState:    nil,
-	}, nil
+	}
 }
 
 func (m *memoryStorage) AppendBatchKV(ctx context.Context, kvs *[]common.KVPair) (uint64, error) {

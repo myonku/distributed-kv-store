@@ -66,10 +66,10 @@ func runOneCommand(
 	cmd ParsedCommand,
 ) error {
 	switch cmd.Name {
-	case "help", "h", "?":
+	case "help", "-h", "?":
 		log.Printf("available commands:\n%s", executor.Help())
 		return nil
-	case "exit", "quit":
+	case "exit", "-q":
 		cancel()
 		return nil
 	default:

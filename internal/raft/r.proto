@@ -8,9 +8,9 @@ option go_package = "./internal/raft/raft_grpc;raft_grpc";
 message LogEntry {
   uint64 index = 1;
   uint64 term  = 2;
-  bytes  cmd_data  = 3;  // cmd 的序列化
-  uint32 type  = 4;  // storage.LogEntryType 的值
-  bytes  conf  = 5;  // ClusterConfigChange 的序列化
+  bytes  cmd_data  = 3; // cmd 的序列化
+  uint32 type  = 4; // storage.LogEntryType 的值
+  bytes  conf  = 5; // ClusterConfigChange 的序列化
 }
 
 // AppendEntries RPC 请求
@@ -44,7 +44,10 @@ message RequestVoteResponse {
   bool   vote_granted = 2;
 }
 
+// Raft 内部通信服务定义
 service RaftService {
+  // 追加日志条目
   rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
+  // 请求投票
   rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
 }

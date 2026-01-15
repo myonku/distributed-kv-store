@@ -4,51 +4,64 @@ package chash.v1;
 
 option go_package = "./internal/chash/chash_grpc;chash_grpc";
 
+// 命令操作枚举
 enum CommandOperation {
     OP_PUT = 0;
     OP_DELETE = 1;
 }
 
+// 命令消息
 message Command {
     CommandOperation op = 1;
     string key = 2;
     string value = 3;
 }
 
+// 键值对消息
 message KVPair {
     string key = 1;
     string value = 2;
 }
 
+// 批量推送请求消息
 message PushBatchRequest {
     uint32 move_id = 1;
     repeated KVPair kvs = 2;
 }
 
+// 批量推送响应消息
 message PushBatchResponse {
     bool ok = 1;
 }
 
+// 范围拉取请求消息
 message PullRangeRequest {
     uint32 move_id = 1;
     uint32 start_hash = 2;
     uint32 end_hash = 3;
 }
 
+// 范围拉取响应消息
 message PullRangeResponse {
     repeated KVPair kvs = 1;
 }
 
+// 数据复制请求消息
 message ReplicateRequest {
     repeated Command cmds = 1;
 }
 
+// 数据复制响应消息
 message ReplicateResponse {
     bool ok = 1;
 }
 
+// 一致性哈希内部通信服务定义
 service CHashService {
+    // Push 批量键值对
     rpc PushBatch(PushBatchRequest) returns (PushBatchResponse);
+    // Pull 范围键值对
     rpc PullRange(PullRangeRequest) returns (PullRangeResponse);
+    // 复制数据命令
     rpc Replicate(ReplicateRequest) returns (ReplicateResponse);
 }
