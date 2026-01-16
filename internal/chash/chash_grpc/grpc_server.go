@@ -2,6 +2,7 @@ package chash_grpc
 
 import (
 	"context"
+	"distributed-kv-store/internal/chash"
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/storage"
@@ -10,12 +11,13 @@ import (
 // 实现 CHashServiceServer 接口，处理数据面内部请求。持有的 Storage 应与业务层同源
 type ChashGRPCServer struct {
 	UnimplementedCHashServiceServer
-	st storage.Storage // 底层存储接口
+	st   storage.Storage // 底层存储接口
+	ring chash.Ring      // 所属一致性哈希环实例
 }
 
 // 创建新的 ChashGRPCServer 实例
-func NewChashGRPCServer(st storage.Storage) *ChashGRPCServer {
-	return &ChashGRPCServer{st: st}
+func NewChashGRPCServer(st storage.Storage, ring chash.Ring) *ChashGRPCServer {
+	return &ChashGRPCServer{st: st, ring: ring}
 }
 
 // 处理 PullRange RPC 调用
@@ -97,4 +99,44 @@ func (s *ChashGRPCServer) Replicate(ctx context.Context, req *ReplicateRequest) 
 		return &ReplicateResponse{Ok: false}, err
 	}
 	return &ReplicateResponse{Ok: true}, nil
+}
+
+// 处理 AnnouncePlan RPC 调用
+func (s *ChashGRPCServer) AnnouncePlan(ctx context.Context, req *AnnouncePlanRequest) (*AckPlan, error) {
+	if s.ring == nil {
+		return &AckPlan{Ok: false}, errors.Error{Type: errors.ImportError, Info: "ring not initialized"}
+	}
+	plans := make([]chash.MovePlanHint, 0, len(req.Plans))
+	for _, pbPlan := range req.Plans {
+		plans = append(plans, chash.MovePlanHint{
+			Epoch:     pbPlan.Epoch,
+			StartHash: pbPlan.StartHash,
+			EndHash:   pbPlan.EndHash,
+			OldOwners: pbPlan.OldOwners,
+			NewOwners: pbPlan.NewOwners,
+			Status:    chash.MigrationStatus(pbPlan.Status),
+		})
+	}
+	s.ring.RecordPlanHints(&plans)
+	return &AckPlan{Ok: true}, nil
+}
+
+// 处理 PullPlanSince RPC 调用
+func (s *ChashGRPCServer) PullPlanSince(ctx context.Context, req *PullPlanSinceRequest) (*PullPlanSinceResponse, error) {
+	if s.ring == nil {
+		return &PullPlanSinceResponse{Plans: []*MovePlanHint{}}, errors.Error{Type: errors.ImportError, Info: "ring not initialized"}
+	}
+	plans := s.ring.PlanHintsSince(req.SinceEpoch)
+	pbPlans := make([]*MovePlanHint, 0, len(*plans))
+	for _, plan := range *plans {
+		pbPlans = append(pbPlans, &MovePlanHint{
+			Epoch:     plan.Epoch,
+			StartHash: plan.StartHash,
+			EndHash:   plan.EndHash,
+			OldOwners: plan.OldOwners,
+			NewOwners: plan.NewOwners,
+			Status:    MigrationStatus(plan.Status),
+		})
+	}
+	return &PullPlanSinceResponse{Plans: pbPlans}, nil
 }

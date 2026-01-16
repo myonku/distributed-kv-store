@@ -35,6 +35,8 @@ type HashRing struct {
 	replicationFactor int               // 副本因子，表示每个数据项存储的节点数量
 	ringKeys          []uint32          // 保存所有虚拟节点的 hash 值并保持有序，用于 GetNode 二分查找
 	vnodeOwners       map[uint32]string // vnodeOwners 将虚拟节点 hash 映射到物理节点 ID
+
+	planHints []MovePlanHint // 本地缓存的迁移计划提示（按 epoch 版本）
 }
 
 // 返回空的一致性哈希环实例，实际调用时根据 Gossip 成员动态构建
@@ -47,5 +49,6 @@ func NewHashRing(cfg *configs.AppConfig) Ring {
 		VitrualNodesMap:   make(map[string]string),
 		ringKeys:          make([]uint32, 0),
 		vnodeOwners:       make(map[uint32]string),
+		planHints:         make([]MovePlanHint, 0),
 	}
 }

@@ -54,6 +54,13 @@ func (b *MemberBridge) runBalanceLoop() {
 			if err != nil {
 				continue
 			}
+
+			// 执行迁移前先通知其他节点
+			_, _, _ = b.AnnouncePlan(b.ctx, &plan.Hints)
+
+			// 记录计划提示
+			b.RecordPlanHints(plan)
+
 			// epoch 未更新则无需处理
 			if plan.Epoch <= b.lastAppliedEpoch {
 				continue

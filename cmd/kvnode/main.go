@@ -32,14 +32,14 @@ func main() {
 	initGlobalLogger(configPath, appCfg)
 
 	// 根据运行模式选择 KVService 实现
-	st, svc, raftNode, gossipNode, cleanup, err := buildKVService(appCfg)
+	st, svc, raftNode, gossipNode, ring, cleanup, err := buildKVService(appCfg)
 	if err != nil {
 		log.Fatalf("build kv service failed: %v", err)
 	}
 	defer cleanup()
 
 	// 创建 gRPC 服务器
-	grpcServers, grpcAddrs, err := buildGRPCServer(appCfg, st, raftNode, gossipNode)
+	grpcServers, grpcAddrs, err := buildGRPCServer(appCfg, st, raftNode, gossipNode, ring)
 	if err != nil {
 		log.Fatalf("build grpc server failed: %v", err)
 	}

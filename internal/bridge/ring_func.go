@@ -7,9 +7,9 @@ import (
 )
 
 // 从 gossip 成员快照重建一致性哈希环并维护通信信息，返回 Ring 重建计划
-func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) (chash.RebalancePlan, error) {
+func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) (chash.MovePlan, error) {
 	if b == nil || b.consHashRing == nil {
-		return chash.RebalancePlan{}, nil
+		return chash.MovePlan{}, nil
 	}
 
 	// 获取本节点 ID 以避免自连接
@@ -88,5 +88,5 @@ func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) (chash.Reba
 		return plan, nil
 	}
 
-	return chash.RebalancePlan{}, err
+	return chash.MovePlan{}, err
 }

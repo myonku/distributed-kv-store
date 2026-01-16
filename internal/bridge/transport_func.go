@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"distributed-kv-store/internal/chash"
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 )
@@ -129,6 +130,56 @@ func (b *MemberBridge) Replicate(ctx context.Context, nodeID string, cmds *[]com
 		return errors.Error{Type: errors.ImportError, Info: "client address not found"}
 	}
 	return b.transport.Replicate(ctx, addr, cmds)
+}
+
+// 预告迁移计划：向目标节点广播迁移计划，返回节点总数和成功预告数
+func (b *MemberBridge) AnnouncePlan(ctx context.Context, hints *[]chash.MovePlanHint) (int, int, error) {
+	if b == nil || b.transport == nil {
+		return 0, 0, errors.Error{Type: errors.ImportError, Info: "transport not initialized"}
+	}
+	selfId := b.gossipNode.SelfID()
+	announced := 0
+	// 从计划中收集所有涉及的节点，跳过自己
+	nodeSet := make(map[string]struct{})
+	for _, hint := range *hints {
+		for _, nodeID := range hint.OldOwners {
+			if nodeID == selfId {
+				continue
+			}
+			nodeSet[nodeID] = struct{}{}
+		}
+		for _, nodeID := range hint.NewOwners {
+			if nodeID == selfId {
+				continue
+			}
+			nodeSet[nodeID] = struct{}{}
+		}
+	}
+	// 逐节点发送
+	for nodeID := range nodeSet {
+		addr, ok := b.CHashGRPCAddress(nodeID)
+		if !ok {
+			continue
+		}
+		err := b.transport.AnnouncePlan(ctx, addr, hints)
+		if err != nil {
+			continue
+		}
+		announced++
+	}
+	return len(nodeSet), announced, nil
+}
+
+// 拉取计划：从目标节点同步指定 epoch 之后的计划
+func (b *MemberBridge) PullPlanSince(ctx context.Context, nodeID string, sinceEpoch uint64) (*[]chash.MovePlanHint, error) {
+	if b == nil || b.transport == nil {
+		return nil, errors.Error{Type: errors.ImportError, Info: "transport not initialized"}
+	}
+	addr, ok := b.CHashGRPCAddress(nodeID)
+	if !ok {
+		return nil, errors.Error{Type: errors.ImportError, Info: "client address not found"}
+	}
+	return b.transport.PullPlanSince(ctx, addr, sinceEpoch)
 }
 
 // endregion

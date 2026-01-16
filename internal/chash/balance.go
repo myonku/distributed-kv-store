@@ -9,24 +9,10 @@ import (
 	"sort"
 )
 
-// 用于数据再平衡的计划结构体
-type RebalancePlan struct {
-	Epoch    uint64      // 计划所属的 epoch
-	Moves    []MoveRange // 节点ID->数据迁移范围映射
-	CopyOnly bool        // 是否仅执行数据复制（不删除旧数据）
-}
-
-type MoveRange struct {
-	FromID    string // 源节点 ID
-	ToNodeID  string // 目标节点 ID
-	StartHash uint32 // 起始哈希值（包含）
-	EndHash   uint32 // 结束哈希值（不包含）
-}
-
 // 重建环并返回数据迁移计划
-func (r *HashRing) RebuildWithPlan(nodes []Node) (plan RebalancePlan, err error) {
+func (r *HashRing) RebuildWithPlan(nodes []Node) (plan MovePlan, err error) {
 	if r == nil {
-		return RebalancePlan{}, nil
+		return MovePlan{}, nil
 	}
 
 	r.mu.Lock()
@@ -34,7 +20,7 @@ func (r *HashRing) RebuildWithPlan(nodes []Node) (plan RebalancePlan, err error)
 
 	// 判断 ring 是否真正变化
 	if SameRingLocked(r, nodes) {
-		return RebalancePlan{Epoch: r.epoch}, nil
+		return MovePlan{Epoch: r.epoch}, nil
 	}
 
 	// 备份旧 ring 状态
@@ -50,6 +36,8 @@ func (r *HashRing) RebuildWithPlan(nodes []Node) (plan RebalancePlan, err error)
 	// - newSet \ oldSet：需要新增的副本（从 oldSet 的任一现存副本复制，默认取 oldSet[0]）
 	// - oldSet \ newSet：是否删除旧副本不在本阶段处理（copy-only）
 	planMoves := make([]MoveRange, 0)
+	planHints := make([]MovePlanHint, 0)
+	nextEpoch := r.epoch + 1
 	if len(oldKeys) != 0 && len(newKeys) != 0 {
 		newRF := r.replicationFactor
 		if newRF <= 0 {
@@ -80,7 +68,10 @@ func (r *HashRing) RebuildWithPlan(nodes []Node) (plan RebalancePlan, err error)
 
 			// 确保新 ring 对该 vnode 有 owner
 			if _, ok := newOwners[cur]; !ok {
-				return RebalancePlan{}, errors.Error{Type: errors.InternalError, Info: "new ring missing vnode owner"}
+				return MovePlan{}, errors.Error{
+					Type: errors.InternalError,
+					Info: "new ring missing vnode owner",
+				}
 			}
 
 			newSet := LookupOwners(newKeys, newOwners, start, newRF)
@@ -92,6 +83,30 @@ func (r *HashRing) RebuildWithPlan(nodes []Node) (plan RebalancePlan, err error)
 			oldSetMap := make(map[string]struct{}, len(oldSet))
 			for _, id := range oldSet {
 				oldSetMap[id] = struct{}{}
+			}
+			newSetMap := make(map[string]struct{}, len(newSet))
+			for _, id := range newSet {
+				newSetMap[id] = struct{}{}
+			}
+
+			sameOwners := len(oldSetMap) == len(newSetMap)
+			if sameOwners {
+				for id := range oldSetMap {
+					if _, ok := newSetMap[id]; !ok {
+						sameOwners = false
+						break
+					}
+				}
+			}
+			if !sameOwners {
+				planHints = append(planHints, MovePlanHint{
+					Epoch:     nextEpoch,
+					StartHash: start,
+					EndHash:   end,
+					OldOwners: oldSet,
+					NewOwners: newSet,
+					Status:    MigrationStatusPlanned,
+				})
 			}
 
 			src := oldSet[0]
@@ -120,7 +135,7 @@ func (r *HashRing) RebuildWithPlan(nodes []Node) (plan RebalancePlan, err error)
 	r.VitrualNodesMap = newVNodeMap
 	r.epoch++
 
-	return RebalancePlan{Epoch: r.epoch, CopyOnly: true, Moves: planMoves}, nil
+	return MovePlan{Epoch: r.epoch, CopyOnly: true, Moves: planMoves, Hints: planHints}, nil
 }
 
 // 合并相邻的迁移范围以减少计划条目数

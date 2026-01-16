@@ -6,65 +6,62 @@ option go_package = "./internal/gossip/gossip_grpc;gossip_grpc";
 
 // 节点状态枚举
 enum NodeState {
-	NODE_STATE_ALIVE = 0;
-	NODE_STATE_SUSPECT = 1;
-	NODE_STATE_DEAD = 2;
+  NODE_STATE_ALIVE   = 0;
+  NODE_STATE_SUSPECT = 1;
+  NODE_STATE_DEAD    = 2;
 }
 
 // 成员摘要信息
 message Digest {
-	string id = 1;
-	uint64 incarnation = 2;
-	NodeState state = 3;
+  string    id          = 1;
+  uint64    incarnation = 2;
+  NodeState state       = 3;
 }
 
 // 成员完整信息
 message Member {
-	string id = 1;
-	string gossip_grpc_address = 2;
-	string chash_grpc_address = 3;
-	string client_address = 4;
-	int32 weight = 5;
+  string id                  = 1;
+  string gossip_grpc_address = 2;
+  string chash_grpc_address  = 3;
+  string client_address      = 4;
+  int32  weight              = 5;
 
-	NodeState state = 6;
-	uint64 incarnation = 7;
-	int64 state_updated = 8;
+  NodeState state         = 6;
+  uint64    incarnation   = 7;
+  int64     state_updated = 8;
 }
 
 // Ping 请求消息
 message PingRequest {
-	string from_id = 1;
-	uint64 from_incarnation = 2;
-	string gossip_addr = 3;
-	string client_address = 4;
-	string chash_addr = 5;
-	int32 chash_weight = 6;
+  string from_id          = 1;
+  uint64 from_incarnation = 2;
+  string gossip_addr      = 3;
+  string client_address   = 4;
+  string chash_addr       = 5;
+  int32  chash_weight     = 6;
 }
 
 // Ping 响应消息
 message PingResponse {
-	bool ok = 1;
+  bool ok = 1;
 }
 
 // PushPull 请求消息
 message PushPullRequest {
-	string from_id = 1;
-	repeated Digest digests = 2;
-	repeated Member full_members = 3;
+  string          from_id      = 1;
+  repeated Digest digests      = 2;
+  repeated Member full_members = 3;
 }
 
 // PushPull 响应消息
 message PushPullResponse {
-	repeated Member delta = 1;
+  repeated Member delta = 1;
 }
 
 // Gossip 内部通信服务定义
 service GossipService {
 	// 节点间 Ping 通知
-	rpc Ping(PingRequest) returns (PingResponse);
+  rpc Ping(PingRequest) returns (PingResponse);
 	// 节点间 PushPull 同步
-	rpc PushPull(PushPullRequest) returns (PushPullResponse);
+  rpc PushPull(PushPullRequest) returns (PushPullResponse);
 }
-
-
-

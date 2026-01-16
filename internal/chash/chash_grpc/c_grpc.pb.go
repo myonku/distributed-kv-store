@@ -19,18 +19,29 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CHashService_PushBatch_FullMethodName = "/chash.v1.CHashService/PushBatch"
-	CHashService_PullRange_FullMethodName = "/chash.v1.CHashService/PullRange"
-	CHashService_Replicate_FullMethodName = "/chash.v1.CHashService/Replicate"
+	CHashService_PushBatch_FullMethodName     = "/chash.v1.CHashService/PushBatch"
+	CHashService_PullRange_FullMethodName     = "/chash.v1.CHashService/PullRange"
+	CHashService_Replicate_FullMethodName     = "/chash.v1.CHashService/Replicate"
+	CHashService_AnnouncePlan_FullMethodName  = "/chash.v1.CHashService/AnnouncePlan"
+	CHashService_PullPlanSince_FullMethodName = "/chash.v1.CHashService/PullPlanSince"
 )
 
 // CHashServiceClient is the client API for CHashService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// 一致性哈希内部通信服务定义
 type CHashServiceClient interface {
+	// Push 批量键值对
 	PushBatch(ctx context.Context, in *PushBatchRequest, opts ...grpc.CallOption) (*PushBatchResponse, error)
+	// Pull 范围键值对
 	PullRange(ctx context.Context, in *PullRangeRequest, opts ...grpc.CallOption) (*PullRangeResponse, error)
+	// 复制数据命令
 	Replicate(ctx context.Context, in *ReplicateRequest, opts ...grpc.CallOption) (*ReplicateResponse, error)
+	// 预告迁移计划
+	AnnouncePlan(ctx context.Context, in *AnnouncePlanRequest, opts ...grpc.CallOption) (*AckPlan, error)
+	// 拉取迁移计划
+	PullPlanSince(ctx context.Context, in *PullPlanSinceRequest, opts ...grpc.CallOption) (*PullPlanSinceResponse, error)
 }
 
 type cHashServiceClient struct {
@@ -71,13 +82,42 @@ func (c *cHashServiceClient) Replicate(ctx context.Context, in *ReplicateRequest
 	return out, nil
 }
 
+func (c *cHashServiceClient) AnnouncePlan(ctx context.Context, in *AnnouncePlanRequest, opts ...grpc.CallOption) (*AckPlan, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AckPlan)
+	err := c.cc.Invoke(ctx, CHashService_AnnouncePlan_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cHashServiceClient) PullPlanSince(ctx context.Context, in *PullPlanSinceRequest, opts ...grpc.CallOption) (*PullPlanSinceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PullPlanSinceResponse)
+	err := c.cc.Invoke(ctx, CHashService_PullPlanSince_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CHashServiceServer is the server API for CHashService service.
 // All implementations must embed UnimplementedCHashServiceServer
 // for forward compatibility.
+//
+// 一致性哈希内部通信服务定义
 type CHashServiceServer interface {
+	// Push 批量键值对
 	PushBatch(context.Context, *PushBatchRequest) (*PushBatchResponse, error)
+	// Pull 范围键值对
 	PullRange(context.Context, *PullRangeRequest) (*PullRangeResponse, error)
+	// 复制数据命令
 	Replicate(context.Context, *ReplicateRequest) (*ReplicateResponse, error)
+	// 预告迁移计划
+	AnnouncePlan(context.Context, *AnnouncePlanRequest) (*AckPlan, error)
+	// 拉取迁移计划
+	PullPlanSince(context.Context, *PullPlanSinceRequest) (*PullPlanSinceResponse, error)
 	mustEmbedUnimplementedCHashServiceServer()
 }
 
@@ -96,6 +136,12 @@ func (UnimplementedCHashServiceServer) PullRange(context.Context, *PullRangeRequ
 }
 func (UnimplementedCHashServiceServer) Replicate(context.Context, *ReplicateRequest) (*ReplicateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Replicate not implemented")
+}
+func (UnimplementedCHashServiceServer) AnnouncePlan(context.Context, *AnnouncePlanRequest) (*AckPlan, error) {
+	return nil, status.Error(codes.Unimplemented, "method AnnouncePlan not implemented")
+}
+func (UnimplementedCHashServiceServer) PullPlanSince(context.Context, *PullPlanSinceRequest) (*PullPlanSinceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PullPlanSince not implemented")
 }
 func (UnimplementedCHashServiceServer) mustEmbedUnimplementedCHashServiceServer() {}
 func (UnimplementedCHashServiceServer) testEmbeddedByValue()                      {}
@@ -172,6 +218,42 @@ func _CHashService_Replicate_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CHashService_AnnouncePlan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnnouncePlanRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CHashServiceServer).AnnouncePlan(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CHashService_AnnouncePlan_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CHashServiceServer).AnnouncePlan(ctx, req.(*AnnouncePlanRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CHashService_PullPlanSince_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PullPlanSinceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CHashServiceServer).PullPlanSince(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CHashService_PullPlanSince_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CHashServiceServer).PullPlanSince(ctx, req.(*PullPlanSinceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CHashService_ServiceDesc is the grpc.ServiceDesc for CHashService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +272,14 @@ var CHashService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Replicate",
 			Handler:    _CHashService_Replicate_Handler,
+		},
+		{
+			MethodName: "AnnouncePlan",
+			Handler:    _CHashService_AnnouncePlan_Handler,
+		},
+		{
+			MethodName: "PullPlanSince",
+			Handler:    _CHashService_PullPlanSince_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

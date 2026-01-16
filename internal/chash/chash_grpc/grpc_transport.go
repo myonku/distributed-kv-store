@@ -27,6 +27,63 @@ func NewGRPCTransport() chash.Transport {
 	}
 }
 
+// PullPlanSince 实现
+func (t *GRPCTransport) AnnouncePlan(ctx context.Context, to string, hints *[]chash.MovePlanHint) error {
+	t.mu.RLock()
+	client, ok := t.cli[to]
+	t.mu.RUnlock()
+	if !ok {
+		return errors.Error{Type: errors.ObjectNotFound, Info: "client does not exist"}
+	}
+	pbReq := &AnnouncePlanRequest{
+		Plans: make([]*MovePlanHint, 0, len(*hints)),
+	}
+	for _, m := range *hints {
+		pbReq.Plans = append(pbReq.Plans, &MovePlanHint{
+			Epoch:     m.Epoch,
+			StartHash: m.StartHash,
+			EndHash:   m.EndHash,
+			OldOwners: m.OldOwners,
+			NewOwners: m.NewOwners,
+			Status:    MigrationStatus(m.Status),
+		})
+	}
+	ack, err := client.AnnouncePlan(ctx, pbReq)
+	if ack != nil && !ack.Ok {
+		return errors.Error{Type: errors.OperationError, Info: "announce plan failed"}
+	}
+	return err
+}
+
+// PullPlanSince 实现
+func (t *GRPCTransport) PullPlanSince(ctx context.Context, to string, sinceEpoch uint64) (*[]chash.MovePlanHint, error) {
+	t.mu.RLock()
+	client, ok := t.cli[to]
+	t.mu.RUnlock()
+	if !ok {
+		return nil, errors.Error{Type: errors.ObjectNotFound, Info: "client does not exist"}
+	}
+	pbReq := &PullPlanSinceRequest{
+		SinceEpoch: sinceEpoch,
+	}
+	resp, err := client.PullPlanSince(ctx, pbReq)
+	if err != nil {
+		return nil, err
+	}
+	plans := make([]chash.MovePlanHint, 0, len(resp.Plans))
+	for _, pbPlan := range resp.Plans {
+		plans = append(plans, chash.MovePlanHint{
+			Epoch:     pbPlan.Epoch,
+			StartHash: pbPlan.StartHash,
+			EndHash:   pbPlan.EndHash,
+			OldOwners: pbPlan.OldOwners,
+			NewOwners: pbPlan.NewOwners,
+			Status:    chash.MigrationStatus(pbPlan.Status),
+		})
+	}
+	return &plans, nil
+}
+
 // PushBatch 实现
 func (t *GRPCTransport) PushBatch(ctx context.Context, moveID uint32, to string, kvs *[]common.KVPair) error {
 	t.mu.RLock()

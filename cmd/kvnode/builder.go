@@ -21,40 +21,40 @@ import (
 // 根据配置的运行模式构造对应的 KVService 实现，返回部分引用和清理函数
 func buildKVService(
 	appCfg *configs.AppConfig,
-) (storage.Storage, services.KVService, *raft.Node, *gossip.Node, func(), error) {
+) (storage.Storage, services.KVService, *raft.Node, *gossip.Node, chash.Ring, func(), error) {
 	cleanup := func() {}
 	// Storage 统一创建，全局管理
 	st, err := storage.NewStorage(appCfg.Storage)
 	if err != nil {
-		return nil, nil, nil, nil, cleanup, err
+		return nil, nil, nil, nil, nil, cleanup, err
 	}
 	switch appCfg.Mode {
 	case configs.ModeStandalone:
 		// 单机模式下直接返回 Storage 和 StandaloneKVService
-		return st, services.NewStandaloneKVService(st), nil, nil, cleanup, nil
+		return st, services.NewStandaloneKVService(st), nil, nil, nil, cleanup, nil
 	case configs.ModeRaft:
 		// Raft 模式下构造 RaftKVService
 		remoteClient := common.NewCommonRemoteClient()
 		kvService, node, transport, err := buildRaftKVService(appCfg, st, remoteClient)
 		if err != nil {
-			return nil, nil, nil, nil, cleanup, err
+			return nil, nil, nil, nil, nil, cleanup, err
 		}
 		cleanup = func() {
 			if transport != nil {
 				_ = transport.Close()
 			}
 		}
-		return st, kvService, node, nil, cleanup, nil
+		return st, kvService, node, nil, nil, cleanup, nil
 	case configs.ModeConsHashGossip:
 		// 一致性哈希 + Gossip 模式下构造 CHashKVService
 		remoteClient := common.NewCommonRemoteClient()
-		kvService, node, gossipTransport, chashTransport, err := buildConsHashGossipKVService(
+		kvService, node, gossipTransport, chashTransport, ring, err := buildConsHashGossipKVService(
 			appCfg,
 			st,
 			remoteClient,
 		)
 		if err != nil {
-			return nil, nil, nil, nil, cleanup, err
+			return nil, nil, nil, nil, nil, cleanup, err
 		}
 		cleanup = func() {
 			if gossipTransport != nil {
@@ -64,9 +64,10 @@ func buildKVService(
 				_ = chashTransport.Close()
 			}
 		}
-		return st, kvService, nil, node, cleanup, nil
+		return st, kvService, nil, node, ring, cleanup, nil
 	default:
-		return nil, nil, nil, nil, cleanup, errors.Error{Type: errors.InvalidArgument, Info: "unsupported mode"}
+		return nil, nil, nil, nil, nil, cleanup,
+			errors.Error{Type: errors.InvalidArgument, Info: "unsupported mode"}
 	}
 }
 
@@ -88,16 +89,16 @@ func buildRaftKVService(
 	return services.NewRaftKVService(st, raftNode, remoteClient), raftNode, transport, nil
 }
 
-// 一致性哈希 + Gossip 模式下构造 CHashKVService，返回 Gossip 节点引用
+// 一致性哈希 + Gossip 模式下构造 CHashKVService，返回 Gossip 节点引用和 ring 引用
 func buildConsHashGossipKVService(
 	appCfg *configs.AppConfig,
 	st storage.Storage,
 	remoteClient common.RemoteClient,
-) (services.KVService, *gossip.Node, gossip.Transport, chash.Transport, error) {
+) (services.KVService, *gossip.Node, gossip.Transport, chash.Transport, chash.Ring, error) {
 	ring := chash.NewHashRing(appCfg)
 	gossipTransport, err := gossip_grpc.NewGRPCTransport(appCfg.Membership.Peers)
 	if err != nil {
-		return nil, nil, nil, nil, errors.Error{Type: errors.InternalError, Info: err.Error()}
+		return nil, nil, nil, nil, nil, errors.Error{Type: errors.InternalError, Info: err.Error()}
 	}
 	chashTransport := chash_grpc.NewGRPCTransport()
 	gossipNode := gossip.NewNode(appCfg, gossipTransport)
@@ -109,7 +110,7 @@ func buildConsHashGossipKVService(
 		st,
 	)
 	kvService := services.NewCHashKVService(memberBridge, st)
-	return kvService, gossipNode, gossipTransport, chashTransport, nil
+	return kvService, gossipNode, gossipTransport, chashTransport, ring, nil
 }
 
 // 创建并注册 gRPC 服务器，返回服务器列表和监听地址
@@ -118,6 +119,7 @@ func buildGRPCServer(
 	st storage.Storage,
 	raftNode *raft.Node,
 	gossipNode *gossip.Node,
+	ring chash.Ring,
 ) ([]*grpc.Server, []string, error) {
 	switch appCfg.Mode {
 	case configs.ModeRaft:
@@ -131,7 +133,7 @@ func buildGRPCServer(
 		gossipSrv := gossip_grpc.NewGossipGRPCServer(gossipNode)
 		gossipGRPCServer := NewGRPCServer()
 		gossip_grpc.RegisterGossipServiceServer(gossipGRPCServer, gossipSrv)
-		chashSrv := chash_grpc.NewChashGRPCServer(st)
+		chashSrv := chash_grpc.NewChashGRPCServer(st, ring)
 		chashGRPCServer := NewGRPCServer()
 		chash_grpc.RegisterCHashServiceServer(chashGRPCServer, chashSrv)
 		return []*grpc.Server{gossipGRPCServer, chashGRPCServer},

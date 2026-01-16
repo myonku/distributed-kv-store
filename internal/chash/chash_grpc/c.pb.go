@@ -21,6 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// 命令操作枚举
 type CommandOperation int32
 
 const (
@@ -67,6 +68,57 @@ func (CommandOperation) EnumDescriptor() ([]byte, []int) {
 	return file_internal_chash_c_proto_rawDescGZIP(), []int{0}
 }
 
+// 迁移状态枚举
+type MigrationStatus int32
+
+const (
+	MigrationStatus_STATUS_PENDING    MigrationStatus = 0
+	MigrationStatus_STATUS_INPROGRESS MigrationStatus = 1
+	MigrationStatus_STATUS_COMPLETED  MigrationStatus = 2
+)
+
+// Enum value maps for MigrationStatus.
+var (
+	MigrationStatus_name = map[int32]string{
+		0: "STATUS_PENDING",
+		1: "STATUS_INPROGRESS",
+		2: "STATUS_COMPLETED",
+	}
+	MigrationStatus_value = map[string]int32{
+		"STATUS_PENDING":    0,
+		"STATUS_INPROGRESS": 1,
+		"STATUS_COMPLETED":  2,
+	}
+)
+
+func (x MigrationStatus) Enum() *MigrationStatus {
+	p := new(MigrationStatus)
+	*p = x
+	return p
+}
+
+func (x MigrationStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MigrationStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_internal_chash_c_proto_enumTypes[1].Descriptor()
+}
+
+func (MigrationStatus) Type() protoreflect.EnumType {
+	return &file_internal_chash_c_proto_enumTypes[1]
+}
+
+func (x MigrationStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MigrationStatus.Descriptor instead.
+func (MigrationStatus) EnumDescriptor() ([]byte, []int) {
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{1}
+}
+
+// 命令消息
 type Command struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Op            CommandOperation       `protobuf:"varint,1,opt,name=op,proto3,enum=chash.v1.CommandOperation" json:"op,omitempty"`
@@ -127,6 +179,7 @@ func (x *Command) GetValue() string {
 	return ""
 }
 
+// 键值对消息
 type KVPair struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -179,6 +232,92 @@ func (x *KVPair) GetValue() string {
 	return ""
 }
 
+// 迁移计划集合消息
+type MovePlanHint struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Epoch         uint64                 `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	StartHash     uint32                 `protobuf:"varint,2,opt,name=start_hash,json=startHash,proto3" json:"start_hash,omitempty"`
+	EndHash       uint32                 `protobuf:"varint,3,opt,name=end_hash,json=endHash,proto3" json:"end_hash,omitempty"`
+	OldOwners     []string               `protobuf:"bytes,4,rep,name=old_owners,json=oldOwners,proto3" json:"old_owners,omitempty"`
+	NewOwners     []string               `protobuf:"bytes,5,rep,name=new_owners,json=newOwners,proto3" json:"new_owners,omitempty"`
+	Status        MigrationStatus        `protobuf:"varint,6,opt,name=status,proto3,enum=chash.v1.MigrationStatus" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MovePlanHint) Reset() {
+	*x = MovePlanHint{}
+	mi := &file_internal_chash_c_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MovePlanHint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MovePlanHint) ProtoMessage() {}
+
+func (x *MovePlanHint) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_chash_c_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MovePlanHint.ProtoReflect.Descriptor instead.
+func (*MovePlanHint) Descriptor() ([]byte, []int) {
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *MovePlanHint) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *MovePlanHint) GetStartHash() uint32 {
+	if x != nil {
+		return x.StartHash
+	}
+	return 0
+}
+
+func (x *MovePlanHint) GetEndHash() uint32 {
+	if x != nil {
+		return x.EndHash
+	}
+	return 0
+}
+
+func (x *MovePlanHint) GetOldOwners() []string {
+	if x != nil {
+		return x.OldOwners
+	}
+	return nil
+}
+
+func (x *MovePlanHint) GetNewOwners() []string {
+	if x != nil {
+		return x.NewOwners
+	}
+	return nil
+}
+
+func (x *MovePlanHint) GetStatus() MigrationStatus {
+	if x != nil {
+		return x.Status
+	}
+	return MigrationStatus_STATUS_PENDING
+}
+
+// 批量推送请求消息
 type PushBatchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MoveId        uint32                 `protobuf:"varint,1,opt,name=move_id,json=moveId,proto3" json:"move_id,omitempty"`
@@ -189,7 +328,7 @@ type PushBatchRequest struct {
 
 func (x *PushBatchRequest) Reset() {
 	*x = PushBatchRequest{}
-	mi := &file_internal_chash_c_proto_msgTypes[2]
+	mi := &file_internal_chash_c_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -201,7 +340,7 @@ func (x *PushBatchRequest) String() string {
 func (*PushBatchRequest) ProtoMessage() {}
 
 func (x *PushBatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[2]
+	mi := &file_internal_chash_c_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -214,7 +353,7 @@ func (x *PushBatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushBatchRequest.ProtoReflect.Descriptor instead.
 func (*PushBatchRequest) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{2}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *PushBatchRequest) GetMoveId() uint32 {
@@ -231,6 +370,7 @@ func (x *PushBatchRequest) GetKvs() []*KVPair {
 	return nil
 }
 
+// 批量推送响应消息
 type PushBatchResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
@@ -240,7 +380,7 @@ type PushBatchResponse struct {
 
 func (x *PushBatchResponse) Reset() {
 	*x = PushBatchResponse{}
-	mi := &file_internal_chash_c_proto_msgTypes[3]
+	mi := &file_internal_chash_c_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -252,7 +392,7 @@ func (x *PushBatchResponse) String() string {
 func (*PushBatchResponse) ProtoMessage() {}
 
 func (x *PushBatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[3]
+	mi := &file_internal_chash_c_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -265,7 +405,7 @@ func (x *PushBatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushBatchResponse.ProtoReflect.Descriptor instead.
 func (*PushBatchResponse) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{3}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *PushBatchResponse) GetOk() bool {
@@ -275,6 +415,7 @@ func (x *PushBatchResponse) GetOk() bool {
 	return false
 }
 
+// 范围拉取请求消息
 type PullRangeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MoveId        uint32                 `protobuf:"varint,1,opt,name=move_id,json=moveId,proto3" json:"move_id,omitempty"`
@@ -286,7 +427,7 @@ type PullRangeRequest struct {
 
 func (x *PullRangeRequest) Reset() {
 	*x = PullRangeRequest{}
-	mi := &file_internal_chash_c_proto_msgTypes[4]
+	mi := &file_internal_chash_c_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -298,7 +439,7 @@ func (x *PullRangeRequest) String() string {
 func (*PullRangeRequest) ProtoMessage() {}
 
 func (x *PullRangeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[4]
+	mi := &file_internal_chash_c_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -311,7 +452,7 @@ func (x *PullRangeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullRangeRequest.ProtoReflect.Descriptor instead.
 func (*PullRangeRequest) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{4}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PullRangeRequest) GetMoveId() uint32 {
@@ -335,6 +476,7 @@ func (x *PullRangeRequest) GetEndHash() uint32 {
 	return 0
 }
 
+// 范围拉取响应消息
 type PullRangeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Kvs           []*KVPair              `protobuf:"bytes,1,rep,name=kvs,proto3" json:"kvs,omitempty"`
@@ -344,7 +486,7 @@ type PullRangeResponse struct {
 
 func (x *PullRangeResponse) Reset() {
 	*x = PullRangeResponse{}
-	mi := &file_internal_chash_c_proto_msgTypes[5]
+	mi := &file_internal_chash_c_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -356,7 +498,7 @@ func (x *PullRangeResponse) String() string {
 func (*PullRangeResponse) ProtoMessage() {}
 
 func (x *PullRangeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[5]
+	mi := &file_internal_chash_c_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -369,7 +511,7 @@ func (x *PullRangeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullRangeResponse.ProtoReflect.Descriptor instead.
 func (*PullRangeResponse) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{5}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PullRangeResponse) GetKvs() []*KVPair {
@@ -379,6 +521,7 @@ func (x *PullRangeResponse) GetKvs() []*KVPair {
 	return nil
 }
 
+// 数据复制请求消息
 type ReplicateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cmds          []*Command             `protobuf:"bytes,1,rep,name=cmds,proto3" json:"cmds,omitempty"`
@@ -388,7 +531,7 @@ type ReplicateRequest struct {
 
 func (x *ReplicateRequest) Reset() {
 	*x = ReplicateRequest{}
-	mi := &file_internal_chash_c_proto_msgTypes[6]
+	mi := &file_internal_chash_c_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -400,7 +543,7 @@ func (x *ReplicateRequest) String() string {
 func (*ReplicateRequest) ProtoMessage() {}
 
 func (x *ReplicateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[6]
+	mi := &file_internal_chash_c_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -413,7 +556,7 @@ func (x *ReplicateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplicateRequest.ProtoReflect.Descriptor instead.
 func (*ReplicateRequest) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{6}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ReplicateRequest) GetCmds() []*Command {
@@ -423,6 +566,7 @@ func (x *ReplicateRequest) GetCmds() []*Command {
 	return nil
 }
 
+// 数据复制响应消息
 type ReplicateResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
@@ -432,7 +576,7 @@ type ReplicateResponse struct {
 
 func (x *ReplicateResponse) Reset() {
 	*x = ReplicateResponse{}
-	mi := &file_internal_chash_c_proto_msgTypes[7]
+	mi := &file_internal_chash_c_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -444,7 +588,7 @@ func (x *ReplicateResponse) String() string {
 func (*ReplicateResponse) ProtoMessage() {}
 
 func (x *ReplicateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_chash_c_proto_msgTypes[7]
+	mi := &file_internal_chash_c_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -457,7 +601,7 @@ func (x *ReplicateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplicateResponse.ProtoReflect.Descriptor instead.
 func (*ReplicateResponse) Descriptor() ([]byte, []int) {
-	return file_internal_chash_c_proto_rawDescGZIP(), []int{7}
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ReplicateResponse) GetOk() bool {
@@ -465,6 +609,186 @@ func (x *ReplicateResponse) GetOk() bool {
 		return x.Ok
 	}
 	return false
+}
+
+// 迁移计划预告消息
+type AnnouncePlanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Plans         []*MovePlanHint        `protobuf:"bytes,1,rep,name=plans,proto3" json:"plans,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnnouncePlanRequest) Reset() {
+	*x = AnnouncePlanRequest{}
+	mi := &file_internal_chash_c_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnnouncePlanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnnouncePlanRequest) ProtoMessage() {}
+
+func (x *AnnouncePlanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_chash_c_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnnouncePlanRequest.ProtoReflect.Descriptor instead.
+func (*AnnouncePlanRequest) Descriptor() ([]byte, []int) {
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *AnnouncePlanRequest) GetPlans() []*MovePlanHint {
+	if x != nil {
+		return x.Plans
+	}
+	return nil
+}
+
+// 迁移计划预告响应消息
+type AckPlan struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AckPlan) Reset() {
+	*x = AckPlan{}
+	mi := &file_internal_chash_c_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AckPlan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AckPlan) ProtoMessage() {}
+
+func (x *AckPlan) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_chash_c_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AckPlan.ProtoReflect.Descriptor instead.
+func (*AckPlan) Descriptor() ([]byte, []int) {
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AckPlan) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+// 拉取迁移计划请求消息
+type PullPlanSinceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SinceEpoch    uint64                 `protobuf:"varint,1,opt,name=since_epoch,json=sinceEpoch,proto3" json:"since_epoch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullPlanSinceRequest) Reset() {
+	*x = PullPlanSinceRequest{}
+	mi := &file_internal_chash_c_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullPlanSinceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullPlanSinceRequest) ProtoMessage() {}
+
+func (x *PullPlanSinceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_chash_c_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullPlanSinceRequest.ProtoReflect.Descriptor instead.
+func (*PullPlanSinceRequest) Descriptor() ([]byte, []int) {
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *PullPlanSinceRequest) GetSinceEpoch() uint64 {
+	if x != nil {
+		return x.SinceEpoch
+	}
+	return 0
+}
+
+// 拉取迁移计划响应消息
+type PullPlanSinceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Plans         []*MovePlanHint        `protobuf:"bytes,1,rep,name=plans,proto3" json:"plans,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullPlanSinceResponse) Reset() {
+	*x = PullPlanSinceResponse{}
+	mi := &file_internal_chash_c_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullPlanSinceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullPlanSinceResponse) ProtoMessage() {}
+
+func (x *PullPlanSinceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_chash_c_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullPlanSinceResponse.ProtoReflect.Descriptor instead.
+func (*PullPlanSinceResponse) Descriptor() ([]byte, []int) {
+	return file_internal_chash_c_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *PullPlanSinceResponse) GetPlans() []*MovePlanHint {
+	if x != nil {
+		return x.Plans
+	}
+	return nil
 }
 
 var File_internal_chash_c_proto protoreflect.FileDescriptor
@@ -478,7 +802,17 @@ const file_internal_chash_c_proto_rawDesc = "" +
 	"\x05value\x18\x03 \x01(\tR\x05value\"0\n" +
 	"\x06KVPair\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"O\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\xcf\x01\n" +
+	"\fMovePlanHint\x12\x14\n" +
+	"\x05epoch\x18\x01 \x01(\x04R\x05epoch\x12\x1d\n" +
+	"\n" +
+	"start_hash\x18\x02 \x01(\rR\tstartHash\x12\x19\n" +
+	"\bend_hash\x18\x03 \x01(\rR\aendHash\x12\x1d\n" +
+	"\n" +
+	"old_owners\x18\x04 \x03(\tR\toldOwners\x12\x1d\n" +
+	"\n" +
+	"new_owners\x18\x05 \x03(\tR\tnewOwners\x121\n" +
+	"\x06status\x18\x06 \x01(\x0e2\x19.chash.v1.MigrationStatusR\x06status\"O\n" +
 	"\x10PushBatchRequest\x12\x17\n" +
 	"\amove_id\x18\x01 \x01(\rR\x06moveId\x12\"\n" +
 	"\x03kvs\x18\x02 \x03(\v2\x10.chash.v1.KVPairR\x03kvs\"#\n" +
@@ -494,15 +828,30 @@ const file_internal_chash_c_proto_rawDesc = "" +
 	"\x10ReplicateRequest\x12%\n" +
 	"\x04cmds\x18\x01 \x03(\v2\x11.chash.v1.CommandR\x04cmds\"#\n" +
 	"\x11ReplicateResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok*-\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\"C\n" +
+	"\x13AnnouncePlanRequest\x12,\n" +
+	"\x05plans\x18\x01 \x03(\v2\x16.chash.v1.MovePlanHintR\x05plans\"\x19\n" +
+	"\aAckPlan\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\"7\n" +
+	"\x14PullPlanSinceRequest\x12\x1f\n" +
+	"\vsince_epoch\x18\x01 \x01(\x04R\n" +
+	"sinceEpoch\"E\n" +
+	"\x15PullPlanSinceResponse\x12,\n" +
+	"\x05plans\x18\x01 \x03(\v2\x16.chash.v1.MovePlanHintR\x05plans*-\n" +
 	"\x10CommandOperation\x12\n" +
 	"\n" +
 	"\x06OP_PUT\x10\x00\x12\r\n" +
-	"\tOP_DELETE\x10\x012\xe0\x01\n" +
+	"\tOP_DELETE\x10\x01*R\n" +
+	"\x0fMigrationStatus\x12\x12\n" +
+	"\x0eSTATUS_PENDING\x10\x00\x12\x15\n" +
+	"\x11STATUS_INPROGRESS\x10\x01\x12\x14\n" +
+	"\x10STATUS_COMPLETED\x10\x022\xf4\x02\n" +
 	"\fCHashService\x12D\n" +
 	"\tPushBatch\x12\x1a.chash.v1.PushBatchRequest\x1a\x1b.chash.v1.PushBatchResponse\x12D\n" +
 	"\tPullRange\x12\x1a.chash.v1.PullRangeRequest\x1a\x1b.chash.v1.PullRangeResponse\x12D\n" +
-	"\tReplicate\x12\x1a.chash.v1.ReplicateRequest\x1a\x1b.chash.v1.ReplicateResponseB(Z&./internal/chash/chash_grpc;chash_grpcb\x06proto3"
+	"\tReplicate\x12\x1a.chash.v1.ReplicateRequest\x1a\x1b.chash.v1.ReplicateResponse\x12@\n" +
+	"\fAnnouncePlan\x12\x1d.chash.v1.AnnouncePlanRequest\x1a\x11.chash.v1.AckPlan\x12P\n" +
+	"\rPullPlanSince\x12\x1e.chash.v1.PullPlanSinceRequest\x1a\x1f.chash.v1.PullPlanSinceResponseB(Z&./internal/chash/chash_grpc;chash_grpcb\x06proto3"
 
 var (
 	file_internal_chash_c_proto_rawDescOnce sync.Once
@@ -516,35 +865,48 @@ func file_internal_chash_c_proto_rawDescGZIP() []byte {
 	return file_internal_chash_c_proto_rawDescData
 }
 
-var file_internal_chash_c_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_internal_chash_c_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_internal_chash_c_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_internal_chash_c_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_internal_chash_c_proto_goTypes = []any{
-	(CommandOperation)(0),     // 0: chash.v1.CommandOperation
-	(*Command)(nil),           // 1: chash.v1.Command
-	(*KVPair)(nil),            // 2: chash.v1.KVPair
-	(*PushBatchRequest)(nil),  // 3: chash.v1.PushBatchRequest
-	(*PushBatchResponse)(nil), // 4: chash.v1.PushBatchResponse
-	(*PullRangeRequest)(nil),  // 5: chash.v1.PullRangeRequest
-	(*PullRangeResponse)(nil), // 6: chash.v1.PullRangeResponse
-	(*ReplicateRequest)(nil),  // 7: chash.v1.ReplicateRequest
-	(*ReplicateResponse)(nil), // 8: chash.v1.ReplicateResponse
+	(CommandOperation)(0),         // 0: chash.v1.CommandOperation
+	(MigrationStatus)(0),          // 1: chash.v1.MigrationStatus
+	(*Command)(nil),               // 2: chash.v1.Command
+	(*KVPair)(nil),                // 3: chash.v1.KVPair
+	(*MovePlanHint)(nil),          // 4: chash.v1.MovePlanHint
+	(*PushBatchRequest)(nil),      // 5: chash.v1.PushBatchRequest
+	(*PushBatchResponse)(nil),     // 6: chash.v1.PushBatchResponse
+	(*PullRangeRequest)(nil),      // 7: chash.v1.PullRangeRequest
+	(*PullRangeResponse)(nil),     // 8: chash.v1.PullRangeResponse
+	(*ReplicateRequest)(nil),      // 9: chash.v1.ReplicateRequest
+	(*ReplicateResponse)(nil),     // 10: chash.v1.ReplicateResponse
+	(*AnnouncePlanRequest)(nil),   // 11: chash.v1.AnnouncePlanRequest
+	(*AckPlan)(nil),               // 12: chash.v1.AckPlan
+	(*PullPlanSinceRequest)(nil),  // 13: chash.v1.PullPlanSinceRequest
+	(*PullPlanSinceResponse)(nil), // 14: chash.v1.PullPlanSinceResponse
 }
 var file_internal_chash_c_proto_depIdxs = []int32{
-	0, // 0: chash.v1.Command.op:type_name -> chash.v1.CommandOperation
-	2, // 1: chash.v1.PushBatchRequest.kvs:type_name -> chash.v1.KVPair
-	2, // 2: chash.v1.PullRangeResponse.kvs:type_name -> chash.v1.KVPair
-	1, // 3: chash.v1.ReplicateRequest.cmds:type_name -> chash.v1.Command
-	3, // 4: chash.v1.CHashService.PushBatch:input_type -> chash.v1.PushBatchRequest
-	5, // 5: chash.v1.CHashService.PullRange:input_type -> chash.v1.PullRangeRequest
-	7, // 6: chash.v1.CHashService.Replicate:input_type -> chash.v1.ReplicateRequest
-	4, // 7: chash.v1.CHashService.PushBatch:output_type -> chash.v1.PushBatchResponse
-	6, // 8: chash.v1.CHashService.PullRange:output_type -> chash.v1.PullRangeResponse
-	8, // 9: chash.v1.CHashService.Replicate:output_type -> chash.v1.ReplicateResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: chash.v1.Command.op:type_name -> chash.v1.CommandOperation
+	1,  // 1: chash.v1.MovePlanHint.status:type_name -> chash.v1.MigrationStatus
+	3,  // 2: chash.v1.PushBatchRequest.kvs:type_name -> chash.v1.KVPair
+	3,  // 3: chash.v1.PullRangeResponse.kvs:type_name -> chash.v1.KVPair
+	2,  // 4: chash.v1.ReplicateRequest.cmds:type_name -> chash.v1.Command
+	4,  // 5: chash.v1.AnnouncePlanRequest.plans:type_name -> chash.v1.MovePlanHint
+	4,  // 6: chash.v1.PullPlanSinceResponse.plans:type_name -> chash.v1.MovePlanHint
+	5,  // 7: chash.v1.CHashService.PushBatch:input_type -> chash.v1.PushBatchRequest
+	7,  // 8: chash.v1.CHashService.PullRange:input_type -> chash.v1.PullRangeRequest
+	9,  // 9: chash.v1.CHashService.Replicate:input_type -> chash.v1.ReplicateRequest
+	11, // 10: chash.v1.CHashService.AnnouncePlan:input_type -> chash.v1.AnnouncePlanRequest
+	13, // 11: chash.v1.CHashService.PullPlanSince:input_type -> chash.v1.PullPlanSinceRequest
+	6,  // 12: chash.v1.CHashService.PushBatch:output_type -> chash.v1.PushBatchResponse
+	8,  // 13: chash.v1.CHashService.PullRange:output_type -> chash.v1.PullRangeResponse
+	10, // 14: chash.v1.CHashService.Replicate:output_type -> chash.v1.ReplicateResponse
+	12, // 15: chash.v1.CHashService.AnnouncePlan:output_type -> chash.v1.AckPlan
+	14, // 16: chash.v1.CHashService.PullPlanSince:output_type -> chash.v1.PullPlanSinceResponse
+	12, // [12:17] is the sub-list for method output_type
+	7,  // [7:12] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_internal_chash_c_proto_init() }
@@ -557,8 +919,8 @@ func file_internal_chash_c_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_chash_c_proto_rawDesc), len(file_internal_chash_c_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   8,
+			NumEnums:      2,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

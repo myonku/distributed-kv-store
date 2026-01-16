@@ -6,62 +6,103 @@ option go_package = "./internal/chash/chash_grpc;chash_grpc";
 
 // 命令操作枚举
 enum CommandOperation {
-    OP_PUT = 0;
-    OP_DELETE = 1;
+  OP_PUT    = 0;
+  OP_DELETE = 1;
+}
+
+// 迁移状态枚举
+enum MigrationStatus {
+  STATUS_PENDING    = 0;
+  STATUS_INPROGRESS = 1;
+  STATUS_COMPLETED  = 2;
 }
 
 // 命令消息
 message Command {
-    CommandOperation op = 1;
-    string key = 2;
-    string value = 3;
+  CommandOperation op    = 1;
+  string           key   = 2;
+  string           value = 3;
 }
 
 // 键值对消息
 message KVPair {
-    string key = 1;
-    string value = 2;
+  string key   = 1;
+  string value = 2;
+}
+
+// 迁移计划集合消息
+message MovePlanHint {
+  uint64          epoch      = 1;
+  uint32          start_hash = 2;
+  uint32          end_hash   = 3;
+  repeated string old_owners = 4;
+  repeated string new_owners = 5;
+  MigrationStatus status     = 6;
 }
 
 // 批量推送请求消息
 message PushBatchRequest {
-    uint32 move_id = 1;
-    repeated KVPair kvs = 2;
+  uint32          move_id = 1;
+  repeated KVPair kvs     = 2;
 }
 
 // 批量推送响应消息
 message PushBatchResponse {
-    bool ok = 1;
+  bool ok = 1;
 }
 
 // 范围拉取请求消息
 message PullRangeRequest {
-    uint32 move_id = 1;
-    uint32 start_hash = 2;
-    uint32 end_hash = 3;
+  uint32 move_id    = 1;
+  uint32 start_hash = 2;
+  uint32 end_hash   = 3;
 }
 
 // 范围拉取响应消息
 message PullRangeResponse {
-    repeated KVPair kvs = 1;
+  repeated KVPair kvs = 1;
 }
 
 // 数据复制请求消息
 message ReplicateRequest {
-    repeated Command cmds = 1;
+  repeated Command cmds = 1;
 }
 
 // 数据复制响应消息
 message ReplicateResponse {
-    bool ok = 1;
+  bool ok = 1;
+}
+
+// 迁移计划预告消息
+message AnnouncePlanRequest {
+  repeated MovePlanHint plans = 1;
+}
+
+// 迁移计划预告响应消息
+message AckPlan {
+  bool ok = 1;
+}
+
+// 拉取迁移计划请求消息
+message PullPlanSinceRequest {
+  uint64 since_epoch = 1;
+}
+
+// 拉取迁移计划响应消息
+message PullPlanSinceResponse {
+  repeated MovePlanHint plans = 1;
 }
 
 // 一致性哈希内部通信服务定义
 service CHashService {
     // Push 批量键值对
-    rpc PushBatch(PushBatchRequest) returns (PushBatchResponse);
+  rpc PushBatch(PushBatchRequest) returns (PushBatchResponse);
     // Pull 范围键值对
-    rpc PullRange(PullRangeRequest) returns (PullRangeResponse);
+  rpc PullRange(PullRangeRequest) returns (PullRangeResponse);
     // 复制数据命令
-    rpc Replicate(ReplicateRequest) returns (ReplicateResponse);
+  rpc Replicate(ReplicateRequest) returns (ReplicateResponse);
+    // 预告迁移计划
+  rpc AnnouncePlan(AnnouncePlanRequest) returns (AckPlan);
+    // 拉取迁移计划
+  rpc PullPlanSince(PullPlanSinceRequest) returns (PullPlanSinceResponse);
 }
