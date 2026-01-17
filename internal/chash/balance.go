@@ -135,6 +135,15 @@ func (r *HashRing) RebuildWithPlan(nodes []Node) (plan MovePlan, err error) {
 	r.VitrualNodesMap = newVNodeMap
 	r.epoch++
 
+	// 清理旧的迁移提示，保留最近两个 epoch 的提示以支持滞后读写
+	newPlanHints := make([]MovePlanHint, 0)
+	for _, h := range r.planHints {
+		if h.Epoch >= r.epoch-1 {
+			newPlanHints = append(newPlanHints, h)
+		}
+	}
+	r.planHints = newPlanHints
+
 	return MovePlan{Epoch: r.epoch, CopyOnly: true, Moves: planMoves, Hints: planHints}, nil
 }
 

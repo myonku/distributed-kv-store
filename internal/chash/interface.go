@@ -10,7 +10,6 @@ import (
 
 // 一致性哈希环接口
 type Ring interface {
-	GetNode(key string) (nodeID string, ok bool, err error)
 	GetNodes(key string) (nodeIDs []string, err error)
 	Epoch() uint64
 	RebuildWithPlan(nodes []Node) (plan MovePlan, err error)
@@ -18,6 +17,8 @@ type Ring interface {
 	PlanHintsSince(sinceEpoch uint64) *[]MovePlanHint
 	LookupPlanHintForHash(hash uint32) (hint MovePlanHint, ok bool)
 	UpdatePlanHintStatus(epoch uint64, startHash, endHash uint32, status MigrationStatus)
+	ResolveReadOwners(key string) (primary []string, fallback []string, err error)
+	ResolveWriteOwners(key string) (targets []string, hinted []string, err error)
 	ClearPlanHintsBefore(epoch uint64)
 }
 

@@ -73,7 +73,13 @@ func (s *RaftKVService) Get(ctx context.Context, key string) (string, error) {
 	if err := s.node.LinearizableRead(ctx); err != nil {
 		return "", err
 	}
-	return s.st.Get(ctx, key)
+	if value, ok, err := s.st.Get(ctx, key); err != nil {
+		return "", err
+	} else if !ok {
+		return "", errors.Error{Type: errors.ObjectNotFound, Info: "key not found"}
+	} else {
+		return value, nil
+	}
 }
 
 // 支持在外部启动 Node

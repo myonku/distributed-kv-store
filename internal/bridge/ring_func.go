@@ -3,6 +3,7 @@ package bridge
 import (
 	"distributed-kv-store/configs"
 	"distributed-kv-store/internal/chash"
+	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/gossip"
 )
 
@@ -89,4 +90,51 @@ func (b *MemberBridge) rebuildFromSnapshot(snapshot []gossip.Member) (chash.Move
 	}
 
 	return chash.MovePlan{}, err
+}
+
+// 根据 key 查询负责节点 ID 列表
+func (b *MemberBridge) OwnerNodeIDs(key string) (nodeIDs []string, err error) {
+	if b == nil || b.consHashRing == nil {
+		return []string{}, errors.Error{Type: errors.ImportError, Info: "consistency hash ring not initialized"}
+	}
+	return b.consHashRing.GetNodes(key)
+}
+
+// ResolveReadOwners 用于读路径的 owner 解析，返回“新 owners + 旧 owners 兜底”
+func (b *MemberBridge) ResolveReadOwners(key string) (primary []string, fallback []string, err error) {
+	primary, fallback, err = b.consHashRing.ResolveReadOwners(key)
+	if err != nil {
+		return nil, nil, err
+	}
+	return primary, fallback, nil
+}
+
+// ResolveWriteOwners 用于写路径的 owner 解析，实现迁移窗口双写/提示写入。
+func (b *MemberBridge) ResolveWriteOwners(key string) (targets []string, hinted []string, err error) {
+	targets, hinted, err = b.consHashRing.ResolveWriteOwners(key)
+	if err != nil {
+		return nil, nil, err
+	}
+	return targets, hinted, nil
+}
+
+// SyncPlanHintsFromPeers 从现有成员拉取迁移计划提示（尽力而为）
+func (b *MemberBridge) SyncPlanHintsFromPeers() {
+	if b == nil || b.gossipNode == nil || b.consHashRing == nil {
+		return
+	}
+	// 从当前 epoch 之后拉取提示
+	sinceEpoch := b.consHashRing.Epoch()
+	snapshot := b.gossipNode.Snapshot()
+	selfID := b.gossipNode.SelfID()
+	for _, m := range snapshot {
+		if m.ID == "" || m.ID == selfID {
+			continue
+		}
+		plans, err := b.PullPlanSince(b.ctx, m.ID, sinceEpoch)
+		if err != nil || plans == nil || len(*plans) == 0 {
+			continue
+		}
+		b.consHashRing.RecordPlanHints(plans)
+	}
 }

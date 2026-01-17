@@ -5,6 +5,7 @@ import (
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/gossip"
+	"fmt"
 )
 
 // 事件循环：消费 gossip event，更新环状态并投递平衡计划
@@ -60,6 +61,8 @@ func (b *MemberBridge) runBalanceLoop() {
 
 			// 记录计划提示
 			b.RecordPlanHints(plan)
+			// 跟踪计划中的 move 任务
+			b.trackPlanMoves(plan)
 
 			// epoch 未更新则无需处理
 			if plan.Epoch <= b.lastAppliedEpoch {
@@ -113,6 +116,14 @@ func (m *MemberBridge) excuteMovePlan(epoch uint64, move chash.MoveRange) error 
 		return nil
 	}
 
+	// 标记该范围进入迁移中（具体语义可后续细化）
+	m.UpdatePlanHintStatus(
+		epoch,
+		move.StartHash,
+		move.EndHash,
+		chash.MigrationStatusInProgress,
+	)
+
 	// 计算 moveID（用于去重）
 	moveID := common.ComputeMoveID(
 		epoch,
@@ -161,5 +172,56 @@ func (m *MemberBridge) excuteMovePlan(epoch uint64, move chash.MoveRange) error 
 	if err := m.st.SaveMoveRangeRecord(m.ctx, moveID); err != nil {
 		return err
 	}
+
+	// 标记该范围完成一次迁移，若该范围所有迁移完成则更新为 completed
+	if m.markMoveDone(epoch, move.StartHash, move.EndHash) {
+		m.UpdatePlanHintStatus(
+			epoch,
+			move.StartHash,
+			move.EndHash,
+			chash.MigrationStatusCompleted,
+		)
+	}
 	return nil
+}
+
+// 跟踪迁移计划中的 move 任务数量
+func (b *MemberBridge) trackPlanMoves(plan chash.MovePlan) {
+	if b == nil || len(plan.Moves) == 0 {
+		return
+	}
+	selfID := b.SelfID()
+	b.planMu.Lock()
+	defer b.planMu.Unlock()
+	for _, mv := range plan.Moves {
+		if mv.FromID != selfID && mv.ToNodeID != selfID {
+			continue
+		}
+		key := rangeKey(plan.Epoch, mv.StartHash, mv.EndHash)
+		b.moveRangeTotal[key]++
+	}
+}
+
+// 标记某个范围的单次迁移完成，返回该范围是否所有迁移均已完成
+func (b *MemberBridge) markMoveDone(epoch uint64, startHash, endHash uint32) bool {
+	if b == nil {
+		return false
+	}
+	key := rangeKey(epoch, startHash, endHash)
+	b.planMu.Lock()
+	defer b.planMu.Unlock()
+	if _, ok := b.moveRangeTotal[key]; !ok {
+		return false
+	}
+	b.moveRangeDone[key]++
+	if b.moveRangeDone[key] >= b.moveRangeTotal[key] {
+		delete(b.moveRangeTotal, key)
+		delete(b.moveRangeDone, key)
+		return true
+	}
+	return false
+}
+
+func rangeKey(epoch uint64, startHash, endHash uint32) string {
+	return fmt.Sprintf("%d:%d:%d", epoch, startHash, endHash)
 }

@@ -25,6 +25,9 @@ type MemberBridge struct {
 	remoteClient common.RemoteClient // 远程客户端，用于请求转发
 	st           storage.Storage     // 用于支持数据迁移及记录持久化
 
+	planMu           sync.Mutex
+	moveRangeTotal   map[string]int
+	moveRangeDone    map[string]int
 	snapshotCh       chan []gossip.Member // 成员快照更新通道（用于驱动 ring rebuild + rebalance）
 	lastAppliedEpoch uint64               // 上次应用的 Ring 版本
 	mu               sync.Mutex
@@ -56,6 +59,8 @@ func NewMemberBridge(
 		st:               st,
 		snapshotCh:       make(chan []gossip.Member, 1),
 		lastAppliedEpoch: ring.Epoch(),
+		moveRangeTotal:   make(map[string]int),
+		moveRangeDone:    make(map[string]int),
 		running:          false,
 	}
 }
@@ -90,6 +95,8 @@ func (b *MemberBridge) Start() {
 
 	// 启动即投递一次快照，保证有初始路由视图
 	b.enqueueSnapshot(b.gossipNode.Snapshot())
+	// 启动时同步一次计划提示
+	go b.SyncPlanHintsFromPeers()
 }
 
 func (b *MemberBridge) Stop() {

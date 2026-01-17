@@ -22,7 +22,7 @@ func startCommandConsole(
 		cancel = func() {}
 	}
 
-	// 启动时的预置命令（例如 -cmd "help; members"）
+	// 启动时的预置命令（例如 -cmd "-h; -s"）
 	for _, raw := range initialCmds {
 		cmd, ok := parseCommandLine(raw)
 		if !ok {

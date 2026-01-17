@@ -18,8 +18,7 @@ type memoryStorage struct {
 	kvLogs    []common.Command  // 业务 KV 的操作日志
 	hashIndex map[string]uint32 // 记录每个 key 对应的哈希值，方便按哈希范围查询
 
-	// moveRangeRecords 用于迁移去重记录，避免与业务 KV 命名空间混用。
-	moveRangeRecords map[uint32]string
+	moveRangeRecords map[uint32]string // moveRangeRecords 用于迁移去重记录
 
 	// Raft 相关数据
 
@@ -208,21 +207,21 @@ func (m *memoryStorage) GetBatch(ctx context.Context, startIndex, endIndex uint6
 	return &res, nil
 }
 
-func (m *memoryStorage) Get(ctx context.Context, key string) (string, error) {
+func (m *memoryStorage) Get(ctx context.Context, key string) (string, bool, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	select {
 	case <-ctx.Done():
-		return "", ctx.Err()
+		return "", false, ctx.Err()
 	default:
 	}
 
 	val, ok := m.data[key]
 	if !ok {
-		return "", nil
+		return "", false, nil
 	}
-	return val, nil
+	return val, true, nil
 }
 
 func (m *memoryStorage) LastIndex() uint64 {

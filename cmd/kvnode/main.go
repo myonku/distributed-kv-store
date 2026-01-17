@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"flag"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -69,30 +67,6 @@ func main() {
 	if err := api.StartHTTPServer(ctx, appCfg.Self.ClientAddress, svc); err != nil {
 		log.Fatalf("http server error: %v", err)
 	}
-}
-
-// 解析启动参数
-func parseStartupFlags(args []string) (configPath string, consoleEnabled bool, initialCmds []string) {
-	fs := flag.NewFlagSet("kvnode", flag.ContinueOnError)
-	fs.SetOutput(os.Stdout)
-
-	config := fs.String("config", "settings.toml", "path to settings.toml")
-	console := fs.Bool("console", true, "enable interactive console")
-	cmds := fs.String("cmd", "", "initial commands separated by ';'")
-
-	_ = fs.Parse(args)
-
-	var parsedCmds []string
-	if *cmds != "" {
-		for raw := range strings.SplitSeq(*cmds, ";") {
-			c := strings.TrimSpace(raw)
-			if c != "" {
-				parsedCmds = append(parsedCmds, c)
-			}
-		}
-	}
-
-	return *config, *console, parsedCmds
 }
 
 // 根据运行模式构造 KVService 实例并启动，返回清理函数

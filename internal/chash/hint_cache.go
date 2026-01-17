@@ -53,6 +53,7 @@ func (r *HashRing) LookupPlanHintForHash(hash uint32) (MovePlanHint, bool) {
 	defer r.mu.RUnlock()
 	var found MovePlanHint
 	ok := false
+	// 查找所有匹配的提示，返回 epoch 最大的那个
 	for _, h := range r.planHints {
 		if containsHash(h.StartHash, h.EndHash, hash) {
 			if !ok || h.Epoch > found.Epoch {

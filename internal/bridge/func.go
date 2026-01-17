@@ -24,42 +24,6 @@ func (b *MemberBridge) IsRunning() bool {
 	return b.running
 }
 
-// 根据 key 查询负责节点 ID
-func (b *MemberBridge) OwnerNodeID(key string) (nodeID string, ok bool, err error) {
-	if b == nil || b.consHashRing == nil {
-		return "", false, errors.Error{Type: errors.ImportError, Info: "consistency hash ring not initialized"}
-	}
-	return b.consHashRing.GetNode(key)
-}
-
-// 根据 key 查询负责节点 ID 列表
-func (b *MemberBridge) OwnerNodeIDs(key string) (nodeIDs []string, err error) {
-	if b == nil || b.consHashRing == nil {
-		return []string{}, errors.Error{Type: errors.ImportError, Info: "consistency hash ring not initialized"}
-	}
-	return b.consHashRing.GetNodes(key)
-}
-
-// ResolveReadOwners 用于读路径的 owner 解析（占位）：
-// 后续可结合 plan hints 返回“新 owners + 旧 owners 兜底”。
-func (b *MemberBridge) ResolveReadOwners(key string) (primary []string, fallback []string, err error) {
-	nodes, err := b.OwnerNodeIDs(key)
-	if err != nil {
-		return nil, nil, err
-	}
-	return nodes, nil, nil
-}
-
-// ResolveWriteOwners 用于写路径的 owner 解析（占位）：
-// 后续可结合 plan hints 实现迁移窗口双写/提示写入。
-func (b *MemberBridge) ResolveWriteOwners(key string) (targets []string, hinted []string, err error) {
-	nodes, err := b.OwnerNodeIDs(key)
-	if err != nil {
-		return nil, nil, err
-	}
-	return nodes, nil, nil
-}
-
 // 提取 gossip 成员信息为 chash 节点
 func MemberToNode(m *gossip.Member) *chash.Node {
 	return chash.NewNode(

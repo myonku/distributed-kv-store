@@ -38,7 +38,13 @@ func (s *StandaloneKVService) Put(ctx context.Context, key, value string) error 
 }
 
 func (s *StandaloneKVService) Get(ctx context.Context, key string) (string, error) {
-	return s.st.Get(ctx, key)
+	if value, exists, err := s.st.Get(ctx, key); err != nil {
+		return "", err
+	} else if !exists {
+		return "", nil
+	} else {
+		return value, nil
+	}
 }
 
 func (s *StandaloneKVService) Delete(ctx context.Context, key string) error {

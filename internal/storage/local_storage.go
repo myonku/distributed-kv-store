@@ -236,10 +236,10 @@ func (s *localStorage) ApplyLog(ctx context.Context, index uint64) error {
 }
 
 // Get 获取指定键的值
-func (s *localStorage) Get(ctx context.Context, key string) (string, error) {
+func (s *localStorage) Get(ctx context.Context, key string) (string, bool, error) {
 	select {
 	case <-ctx.Done():
-		return "", ctx.Err()
+		return "", false, ctx.Err()
 	default:
 	}
 
@@ -247,11 +247,11 @@ func (s *localStorage) Get(ctx context.Context, key string) (string, error) {
 	err := s.db.QueryRowContext(ctx, "SELECT v FROM kv_state WHERE k = ?", key).Scan(&v)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", nil
+			return "", false, nil
 		}
-		return "", err
+		return "", false, err
 	}
-	return v, nil
+	return v, true, nil
 }
 
 // LastIndex 返回当前最后一条业务日志的索引
