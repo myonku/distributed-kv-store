@@ -2,9 +2,25 @@ package gossip
 
 import (
 	"distributed-kv-store/configs"
+	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"time"
 )
+
+// ApplyConfChange 在 Gossip/CHash 模式下应用集群配置变更
+func (n *Node) ApplyConfChange(cc common.ClusterConfigChange) error {
+	if n == nil {
+		return errors.Error{Type: errors.ImportError, Info: "node not initialized"}
+	}
+	switch cc.Type {
+	case common.ConfChangeAddNode:
+		return n.AddMember(cc.Node)
+	case common.ConfChangeRemoveNode:
+		return n.RemoveMember(cc.Node.ID)
+	default:
+		return errors.Error{Type: errors.InvalidArgument, Info: "unknown conf change type"}
+	}
+}
 
 // 将一个新节点加入本地成员视图，并建立到该节点的 transport 连接
 func (n *Node) AddMember(peer configs.ClusterNode) error {

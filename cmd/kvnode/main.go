@@ -64,6 +64,7 @@ func main() {
 		startCommandConsole(ctx, cancel, exec, initialCmds)
 	}
 
+	// 启动 HTTP API 服务器
 	if err := api.StartHTTPServer(ctx, appCfg.Self.ClientAddress, svc); err != nil {
 		log.Fatalf("http server error: %v", err)
 	}

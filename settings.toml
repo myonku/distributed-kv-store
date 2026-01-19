@@ -19,7 +19,7 @@ chash_grpc_address = "127.0.0.1:9201"
 # 只在 chash-gossip 模式下使用，表示环节点权重
 weight = 1
 
-## 集群成员管理配置
+## 集群成员管理配置，仅在非 standalone 模式下使用
 [membership]
 type = "static" # "static" | "raft" | "chash_gossip"
 

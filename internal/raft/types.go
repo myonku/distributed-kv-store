@@ -37,3 +37,15 @@ type Status struct {
 	LastApplied   uint64
 	CurrentLeader string
 }
+
+// 集群成员状态（用于打印）
+type MemberStatus struct {
+	Peer     RaftPeer
+	IsLeader bool
+}
+
+// 集群状态（用于打印）
+type ClusterStatus struct {
+	Self    Status
+	Members []MemberStatus
+}

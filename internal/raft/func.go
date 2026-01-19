@@ -5,7 +5,9 @@ import (
 	"distributed-kv-store/internal/common"
 	"distributed-kv-store/internal/errors"
 	"distributed-kv-store/internal/raft/raft_store"
+	"fmt"
 	"maps"
+	"strings"
 )
 
 // 在 Leader 上执行一次线性一致读屏障
@@ -316,6 +318,77 @@ func (n *Node) Status() Status {
 		LastApplied:   n.lastApplied,
 		CurrentLeader: n.leaderID,
 	}
+}
+
+// 返回集群状态（用于打印）
+func (n *Node) ClusterStatus() ClusterStatus {
+	if n == nil {
+		return ClusterStatus{}
+	}
+
+	n.mu.RLock()
+	self := Status{
+		ID:            n.id,
+		Role:          n.role,
+		Term:          n.term,
+		CommitIndex:   n.commitIndex,
+		LastApplied:   n.lastApplied,
+		CurrentLeader: n.leaderID,
+	}
+
+	leaderID := n.leaderID
+	members := make([]MemberStatus, 0, len(n.peers))
+	for _, peer := range n.peers {
+		member := MemberStatus{
+			Peer:     peer,
+			IsLeader: peer.ID == leaderID,
+		}
+		members = append(members, member)
+	}
+	n.mu.RUnlock()
+
+	return ClusterStatus{
+		Self:    self,
+		Members: members,
+	}
+}
+
+// 格式化输出集群状态信息（用于打印）
+func (n *Node) FormatClusterStatus() string {
+	status := n.ClusterStatus()
+	var builder strings.Builder
+	var role string
+	switch status.Self.Role {
+	case Follower:
+		role = "Follower"
+	case Leader:
+		role = "Leader"
+	case Candidate:
+		role = "Candidate"
+	default:
+		role = "Unknown"
+	}
+	fmt.Fprintf(&builder, "Node ID: %s\n", status.Self.ID)
+	fmt.Fprintf(&builder, "Role   : %s\n", role)
+	fmt.Fprintf(&builder, "Term   : %d\n", status.Self.Term)
+	fmt.Fprintf(&builder, "Commit : %d\n", status.Self.CommitIndex)
+	fmt.Fprintf(&builder, "Applied: %d\n", status.Self.LastApplied)
+	fmt.Fprintf(&builder, "Leader : %s\n", status.Self.CurrentLeader)
+	fmt.Fprintf(&builder, "Members:\n")
+	for _, member := range status.Members {
+		leaderMark := " "
+		if member.IsLeader {
+			leaderMark = "*"
+		}
+		fmt.Fprintf(
+			&builder, "  %s ID: %s, ClientAddr: %s, RaftGRPCAddr: %s\n",
+			leaderMark,
+			member.Peer.ID,
+			member.Peer.ClientAddress,
+			member.Peer.RaftGRPCAddress,
+		)
+	}
+	return builder.String()
 }
 
 // 是否是 Leader
