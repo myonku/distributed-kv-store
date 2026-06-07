@@ -12,6 +12,8 @@ type BackgroundTaskManager struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// 其他需要的资源、配置等
 }
 
 // NewBackgroundTaskManager 创建一个新的后台任务管理器

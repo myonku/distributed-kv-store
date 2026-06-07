@@ -79,16 +79,16 @@ func (e *AppCommandExecutor) Execute(ctx context.Context, cmd ParsedCommand) err
 		}
 		return nil
 	case "meet", "-m":
-		if len(cmd.Args) < 3 {
-			return errors.Error{
-				Type: errors.InvalidArgument,
-				Info: "usage: meet <id> <client_addr> <internal_addr1> <internal_addr2>",
-			}
-		}
 		if e.raftNode == nil && e.gossipNode == nil {
 			return errors.Error{
 				Type: errors.ConditionError,
 				Info: "not to support adding node in current mode",
+			}
+		}
+		if len(cmd.Args) < 3 {
+			return errors.Error{
+				Type: errors.InvalidArgument,
+				Info: "usage: meet <id> <client_addr> <internal_addr1> <internal_addr2>",
 			}
 		}
 		id := cmd.Args[0]

@@ -2,7 +2,7 @@
 # 相对路径（如 storage.path / logger.dir）均以 settings.toml 所在目录为基准解析。
 
 ## 运行模式："standalone" | "raft" | "chash_gossip"
-mode = "raft"
+mode = "standalone"
 
 ## 本节点配置（ClusterNode）
 [self]
@@ -69,7 +69,7 @@ replication_factor = 3
 
 ## 底层存储配置
 [storage]
-mode = "sqlite" # "memory" | "sqlite"；留空时由程序推断
+mode = "memory" # "memory" | "sqlite"；留空时由程序推断
 
 # sqlite 下：path 可以是“目录”或“具体 db 文件路径”。
 # - 为空（或不写）时：默认将 db 放在 settings.toml 同级目录。
